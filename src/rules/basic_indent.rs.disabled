@@ -1,0 +1,182 @@
+use full_moon::{
+    ast::{
+        punctuated::{Pair, Punctuated},
+        Expression,
+    },
+    tokenizer::{Symbol, Token, TokenReference, TokenType},
+};
+
+use crate::trivial::{FormatTriviaType as FTT, UpdateTrailingTrivia};
+
+use super::{NodeKey, NodeWrapper, Registry, RuleContext, WalkTy, LintReport};
+pub struct BaiscIndent {
+    
+    pub state: State,
+    pub ident_width: usize,
+    pub reports: Vec<LintReport>,
+}
+
+pub struct State {
+    pub indent_level: usize,
+}
+
+impl State {
+    pub fn indent(&mut self) {
+        self.indent_level += 1;
+    }
+    pub fn dedent(&mut self) {
+        self.indent_level -= 1;
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self { indent_level: 0 }
+    }
+}
+
+impl RuleContext for BaiscIndent {
+    fn get_reports(&self) -> &Vec<LintReport> {
+        &self.reports
+    }
+}
+
+impl BaiscIndent {
+    pub fn apply(rules: &mut Registry) -> Self {
+        let rule_name = "basic_indent";
+
+        rules.listen_enter(rule_name, NodeKey::Block, Box::new(Self::enter_block));
+        rules.listen_leave(rule_name, NodeKey::Block, Box::new(Self::leave_block));
+        rules.listen_enter(rule_name, NodeKey::Return, Box::new(Self::enter_return));
+        rules.listen_leave(rule_name, NodeKey::Return, Box::new(Self::leave_return));
+        rules.listen_enter(rule_name, NodeKey::TokenRef, Box::new(Self::enter_token_ref));
+
+        rules.listen_leave(rule_name, NodeKey::If, Box::new(Self::leave_if));
+
+        Self {
+            
+            ident_width: 4,
+            state: State::default(),
+            reports: vec![],
+        }
+    }
+
+    fn leave_if(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let if_ = rule_cast!(node, NodeWrapper::If);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+        let new_if = if_.clone().with_end_token(
+            if_.end_token().update_trailing_trivia(FTT::Replace(vec![Self::create_linebreak()])),
+        );
+        return NodeWrapper::If(new_if);
+    }
+
+    fn enter_return(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let ret = rule_cast!(node, NodeWrapper::Return);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+
+        return NodeWrapper::Return(ret);
+    }
+
+    fn leave_return(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let ret = rule_cast!(node, NodeWrapper::Return);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+        let new_returns =
+            ret.returns().update_trailing_trivia(FTT::Replace(vec![Self::create_linebreak()]));
+        let new_return = ret.clone().with_returns(new_returns);
+        return NodeWrapper::Return(new_return);
+    }
+
+    fn enter_block(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let block = rule_cast!(node, NodeWrapper::Block);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+
+        ctx.state.indent();
+
+        return NodeWrapper::Block(block);
+    }
+
+    fn leave_block(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let block = rule_cast!(node, NodeWrapper::Block);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+
+        ctx.state.dedent();
+
+        return NodeWrapper::Block(block);
+    }
+
+    fn enter_token_ref(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let token_ref = rule_cast!(node, NodeWrapper::TokenRef);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+
+        match token_ref.token().token_type() {
+            TokenType::Symbol { symbol } => match symbol {
+                Symbol::For | Symbol::End | Symbol::If => {
+                    let lead_ws = vec![Self::create_indent(ctx)];
+                    let trail_ws = vec![Self::create_space()];
+                    let new_token_ref =
+                        TokenReference::new(lead_ws, token_ref.token().to_owned(), trail_ws);
+                    return NodeWrapper::TokenRef(new_token_ref);
+                }
+                Symbol::Return => {
+                    let lead_ws = vec![Self::create_linebreak(), Self::create_indent(ctx)];
+                    let trail_ws = vec![Self::create_space()];
+                    let new_token_ref =
+                        TokenReference::new(lead_ws, token_ref.token().to_owned(), trail_ws);
+                    return NodeWrapper::TokenRef(new_token_ref);
+                }
+                _ => NodeWrapper::TokenRef(token_ref),
+            },
+            _ => NodeWrapper::TokenRef(token_ref),
+        }
+    }
+    fn format_punctuated(
+        ctx: &mut BaiscIndent,
+        punc: &full_moon::ast::punctuated::Punctuated<Expression>,
+    ) -> full_moon::ast::punctuated::Punctuated<Expression> {
+        let mut ret = full_moon::ast::punctuated::Punctuated::new();
+        for (i, pair) in punc.pairs().enumerate() {
+            match pair {
+                Pair::Punctuated(value, punctuation) => {
+                    // let value = value_formatter(ctx, value, shape);
+                    // let punctuation = fmt_symbol!(ctx, punctuation, ",", shape).update_trailing_trivia(
+                    // FormatTriviaType::Append(vec![Token::new(TokenType::spaces(1))]),
+                    // );
+                    // shape = shape.take_last_line(&value) + 2; // 2 = ", "
+
+                    ret.push(Pair::new(value.to_owned(), Some(punctuation.to_owned())));
+                }
+                Pair::End(value) => {
+                    // let value = value_formatter(ctx, value, shape);
+                    ret.push(Pair::new(value.to_owned(), None));
+                }
+            }
+        }
+        ret
+    }
+    fn on_last_stmt(rctx: &mut dyn RuleContext, node: NodeWrapper) -> NodeWrapper {
+        let last_stmt = rule_cast!(node, NodeWrapper::LastStmt);
+        let ctx: &mut BaiscIndent = rctx.downcast_mut().unwrap();
+
+        match last_stmt {
+            full_moon::ast::LastStmt::Return(ret_node) => {
+                let returns = Self::format_punctuated(ctx, ret_node.returns());
+                let ret_node = ret_node.to_owned().with_returns(returns);
+                return NodeWrapper::LastStmt(full_moon::ast::LastStmt::Return(ret_node));
+            }
+            _ => NodeWrapper::LastStmt(last_stmt),
+        }
+    }
+
+    fn create_indent(ctx: &BaiscIndent) -> Token {
+        assert!(ctx.state.indent_level > 0);
+        Token::new(TokenType::spaces(ctx.ident_width * (ctx.state.indent_level - 1)))
+    }
+
+    fn create_linebreak() -> Token {
+        Token::new(TokenType::Whitespace { characters: "\n".into() })
+    }
+
+    fn create_space() -> Token {
+        Token::new(TokenType::spaces(1))
+    }
+}

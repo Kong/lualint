@@ -1,0 +1,8 @@
+{
+    "max_column_width": {},
+    // "no_trailing_space": {},
+    "one_line_before_else": {},
+    "eof_blank_line": {},
+    "table_ctor_comma": {},
+    "func_separation": {}
+}
