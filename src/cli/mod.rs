@@ -1,7 +1,7 @@
 use clap::Subcommand;
-use log::{error, info, trace};
+use log::{error, trace};
 use lualint::{
-    lint::{self, linter_builder, Linter, LinterBuilder},
+    lint::{self, Linter},
     rules::{self, LintReport},
 };
 
@@ -124,14 +124,11 @@ pub(crate) fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
         println!("File is not a lua file: {}", filename);
         return;
     }
-    let has_error = false;
     let exit_on_err = true; // TODO: make this configurable
     let processed = match std::fs::read_to_string(filename) {
         Ok(lua_src) => {
-            let (out, has_error) = drive(filename, &lua_src, linter);
-            if has_error && exit_on_err {
-                std::process::exit(1);
-            }
+            let out = drive(&lua_src, linter);
+            exit_on_lint_errors(filename, linter);
             out
         }
         Err(e) => {
@@ -150,30 +147,137 @@ pub(crate) fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
     }
 }
 
-// TODO: filename shoud not be dependency
-pub fn drive(filename: &str, lua_src: &str, linter: &mut Linter) -> (String, bool) {
-    let lua_src = linter.rule_registry.trigger_preprocess(lua_src);
-    let tokens = full_moon::tokenizer::tokens(lua_src.as_str()).unwrap();
-    let tokens = lint::lint_tokens(&tokens, linter);
-    let input_ast = full_moon::ast::Ast::from_tokens(tokens).unwrap();
+fn format_report(filename: &str, report: &LintReport) -> String {
+    let file_contents = std::fs::read_to_string(filename).unwrap();
+    let lines: Vec<&str> = file_contents.lines().collect();
+    if report.pos.line == 0 {
+        return format!("{}: {}", filename, report.msg);
+    }
+    let line = (report.pos.line, lines[report.pos.line - 1]);
+    let continued_line = if report.pos.line < lines.len() {
+        Some((report.pos.line + 1, lines[report.pos.line]))
+    } else {
+        None
+    };
+    pub(crate) fn format_impl(
+        filename: &str,
+        report: &LintReport,
+        line: (usize, &str),
+        continued_line: Option<(usize, &str)>,
+    ) -> String {
+        let spacing = " ";
+        let lineno = report.pos.line;
+        let colno = report.pos.col - 1;
+        let path = filename;
+        let message = &report.msg;
+        let line = line.1;
 
-    let (_formatted_ast, ctx) = lint::lint_visitor::lint_ast(&input_ast, linter);
+        fn underline(colno: usize, line: &str) -> String {
+            let mut underline = String::new();
 
-    // println!("{}", full_moon::print(&formatted_ast));
+            let mut start = colno;
+            let end = colno;
+            let offset = start - 1;
+            let line_chars = line.chars();
 
+            for c in line_chars.take(offset) {
+                match c {
+                    '\t' => underline.push('\t'),
+                    _ => underline.push(' '),
+                }
+            }
+
+            underline.push('^');
+            if end - start > 1 {
+                for _ in 2..(end - start) {
+                    underline.push('-');
+                }
+                underline.push('^');
+            }
+
+            underline
+        }
+
+        if let Some((next_lineno, continued_line)) = continued_line {
+            let has_line_gap = next_lineno - lineno > 1;
+            if has_line_gap {
+                format!(
+                    "{s    }--> {p}:{ls}:{c}\n\
+                     {s    } |\n\
+                     {ls:w$} | {line}\n\
+                     {s    } | ...\n\
+                     {le:w$} | {continued_line}\n\
+                     {s    } | {underline}\n\
+                     {s    } |\n\
+                     {s    } = {message}",
+                    s = spacing,
+                    w = spacing.len(),
+                    p = path,
+                    ls = lineno,
+                    le = next_lineno,
+                    c = colno,
+                    line = line,
+                    continued_line = continued_line,
+                    underline = underline(colno, line),
+                    message = message,
+                )
+            } else {
+                format!(
+                    "{s    }--> {p}:{ls}:{c}\n\
+                     {s    } |\n\
+                     {ls:w$} | {line}\n\
+                     {le:w$} | {continued_line}\n\
+                     {s    } | {underline}\n\
+                     {s    } |\n\
+                     {s    } = {message}",
+                    s = spacing,
+                    w = spacing.len(),
+                    p = path,
+                    ls = lineno,
+                    le = next_lineno,
+                    c = colno,
+                    line = line,
+                    continued_line = continued_line,
+                    underline = underline(colno, line),
+                    message = message,
+                )
+            }
+        } else {
+            format!(
+                "{s}--> {p}:{l}:{c}\n\
+                 {s} |\n\
+                 {l} | {line}\n\
+                 {s} | {underline}\n\
+                 {s} |\n\
+                 {s} = {message}",
+                s = spacing,
+                p = path,
+                l = lineno,
+                c = colno,
+                line = line,
+                underline = underline(colno, line),
+                message = message,
+            )
+        }
+    }
+
+    let ret = format_impl(filename, report, line, continued_line);
+    ret
+}
+
+fn exit_on_lint_errors(filename: &str, linter: &mut Linter) {
     let mut report_str = String::new();
-    ctx.linter.rule_registry.rule_ctx.iter().for_each(|(name, rule)| {
+    linter.rule_registry.rule_ctx.iter().for_each(|(name, rule)| {
         let mut rule_report_str = String::new();
         rule.get_reports().iter().for_each(|report: &LintReport| {
             let mut report_tmp: LintReport = report.clone();
             report_tmp.pos.file = filename.to_string();
-            rule_report_str.push_str(&format!("--  {:?}\n", report_tmp));
+            rule_report_str.push_str(&format!("{}\n", format_report(filename, &report_tmp)));
         });
         if rule_report_str.len() > 0 {
             report_str.push_str(&format!("[rule] {}:\n{}", name, rule_report_str));
         }
     });
-    // TODO: move side effects out of this function
     if report_str.len() == 0 {
         println!("== lint report");
         println!("ok");
@@ -181,6 +285,14 @@ pub fn drive(filename: &str, lua_src: &str, linter: &mut Linter) -> (String, boo
         eprintln!("== lint report");
         eprintln!("{}", report_str);
     }
+}
 
-    return (lua_src.to_string(), report_str.len() > 0);
+pub fn drive(lua_src: &str, linter: &mut Linter) -> String {
+    let lua_src = linter.rule_registry.trigger_preprocess(lua_src);
+    let tokens = full_moon::tokenizer::tokens(lua_src.as_str()).unwrap();
+    let tokens = lint::lint_tokens(&tokens, linter);
+    let input_ast = full_moon::ast::Ast::from_tokens(tokens).unwrap();
+
+    let (_formatted_ast, ctx) = lint::lint_visitor::lint_ast(&input_ast, linter);
+    return lua_src.to_string();
 }
