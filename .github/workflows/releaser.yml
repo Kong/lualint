@@ -1,8 +1,11 @@
-name: Release
-
+name: Build Releases
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - v*.*.*
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   build-cross:
