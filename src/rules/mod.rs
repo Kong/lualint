@@ -208,10 +208,10 @@ impl Registry {
         rule_name: &str,
         node_type: NodeKey,
         walker_type: WalkTy,
-        callback: Box<RuleCallback>,
+        callback: RuleCallback,
     ) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(*callback);
+        self.callbacks.push(callback);
         match walker_type {
             WalkTy::Enter => {
                 self.enter_walker_map.entry(node_type).or_insert(vec![]).push(callback_index);
@@ -256,7 +256,7 @@ impl Registry {
         &mut self,
         rule_name: &str,
         node_type: NodeKey,
-        callback: Box<RuleCallback>,
+        callback: RuleCallback,
     ) {
         self.register_walker(rule_name, node_type, WalkTy::Enter, callback);
     }
@@ -265,7 +265,7 @@ impl Registry {
         &mut self,
         rule_name: &str,
         node_type: NodeKey,
-        callback: Box<RuleCallback>,
+        callback: RuleCallback,
     ) {
         self.register_walker(rule_name, node_type, WalkTy::Leave, callback);
     }

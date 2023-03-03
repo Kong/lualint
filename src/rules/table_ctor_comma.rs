@@ -11,11 +11,7 @@ pub struct TableCtorComma {
 impl Rule for TableCtorComma {
     fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         let rule_name = "table_ctor_comma";
-        rules.listen_enter(
-            rule_name,
-            NodeKey::TableConstructor,
-            Box::new(Self::enter_table_ctor_block),
-        );
+        rules.listen_enter(rule_name, NodeKey::TableConstructor, Self::enter_table_ctor_block);
 
         Self { reports: vec![] }
     }
@@ -34,11 +30,7 @@ impl RuleContext for TableCtorComma {
 impl TableCtorComma {
     pub fn apply(rules: &mut Registry) -> Self {
         let rule_name = "table_ctor_comma";
-        rules.listen_enter(
-            rule_name,
-            NodeKey::TableConstructor,
-            Box::new(Self::enter_table_ctor_block),
-        );
+        rules.listen_enter(rule_name, NodeKey::TableConstructor, Self::enter_table_ctor_block);
 
         Self { reports: vec![] }
     }

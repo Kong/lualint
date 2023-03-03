@@ -38,7 +38,7 @@ impl Rule for FuncSeparation {
 impl FuncSeparation {
     pub fn apply(rules: &mut Registry, min_linebreak: usize) -> Self {
         let rule_name = "func_separation";
-        rules.listen_enter(rule_name, NodeKey::Block, Box::new(Self::enter_block));
+        rules.listen_enter(rule_name, NodeKey::Block, Self::enter_block);
 
         Self { min_empty_line: min_linebreak, reports: vec![] }
     }

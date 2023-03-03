@@ -10,7 +10,7 @@ pub struct OneLineBeforeElse {
 impl Rule for OneLineBeforeElse {
     fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         let rule_name = "one_line_before_else";
-        rules.listen_enter(rule_name, NodeKey::If, Box::new(Self::enter_if));
+        rules.listen_enter(rule_name, NodeKey::If, Self::enter_if);
 
         Self { reports: vec![] }
     }
@@ -29,7 +29,7 @@ impl RuleContext for OneLineBeforeElse {
 impl OneLineBeforeElse {
     pub fn apply(rules: &mut Registry) -> Self {
         let rule_name = "one_line_before_else";
-        rules.listen_enter(rule_name, NodeKey::If, Box::new(Self::enter_if));
+        rules.listen_enter(rule_name, NodeKey::If, Self::enter_if);
 
         Self { reports: vec![] }
     }
