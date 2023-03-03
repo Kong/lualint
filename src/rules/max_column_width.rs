@@ -1,10 +1,4 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Token, TokenType},
-};
-
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, RuleInfo, WalkTy, Rule};
+use super::{LintReport, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(max_column_width, "Maximum column width", "20230224", "max_col: 80");
 pub struct MaxColumnWidth {
@@ -56,7 +50,7 @@ impl MaxColumnWidth {
                 return NodeWrapper::Token(token);
             }
             ctx.reports.push(LintReport {
-                pos: token.end_position().clone().into(),
+                pos: token.end_position().into(),
                 level: super::ReportLevel::Warning,
                 msg: format!(
                     "Line is expected to be at most {} characters, but is {} characters",

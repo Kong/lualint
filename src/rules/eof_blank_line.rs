@@ -1,11 +1,4 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Position, Token, TokenType},
-};
-use serde_json::Value;
-
-use super::{LintReport, NodeKey, NodeWrapper, Pos, Registry, Rule, RuleContext, RuleInfo, WalkTy};
+use super::{LintReport, NodeWrapper, Pos, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(eof_blank_line, "Require a blank line at the end of the file", "20230224", "");
 
@@ -19,9 +12,8 @@ impl RuleContext for EofBlankLine {
     }
 }
 
-
 impl Rule for EofBlankLine {
-    fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
+    fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         rules.preprocess(RULE_NAME, Box::new(Self::preprocess));
         Self { reports: vec![] }
     }
@@ -36,11 +28,11 @@ impl EofBlankLine {
         let ctx: &mut EofBlankLine = rctx.downcast_mut().unwrap();
         let source = rule_cast!(node, NodeWrapper::Source);
 
-        if !source.ends_with("\n") {
+        if !source.ends_with('\n') {
             ctx.reports.push(LintReport {
                 pos: Pos::new(0, 0),
                 level: super::ReportLevel::Warning,
-                msg: format!("File is expected to end with a blank line, but does not",),
+                msg: "File is expected to end with a blank line, but does not".to_string(),
             });
         }
 

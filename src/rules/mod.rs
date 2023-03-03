@@ -58,7 +58,7 @@ pub struct RuleInfo {
 
 lazy_static::lazy_static! {
     pub static  ref ALL_RULES: std::sync::Mutex<HashMap<&'static str, RuleInfo>> = {
-        let mut map = HashMap::new();
+        let map = HashMap::new();
         Mutex::new(map)
     };
 }
@@ -72,12 +72,12 @@ pub struct Pos {
 
 impl Pos {
     pub fn new(line: usize, column: usize) -> Pos {
-        return Pos { file: String::default(), line, col: column };
+        Pos { file: String::default(), line, col: column }
     }
 
     pub fn with_file(&mut self, file: String) -> Pos {
         self.file = file;
-        return self.to_owned();
+        self.to_owned()
     }
 }
 impl From<Position> for Pos {
@@ -148,7 +148,7 @@ type RuleCallback = fn(rctx: &mut dyn RuleContext, rule: NodeWrapper) -> NodeWra
 type CallbackIndex = usize;
 #[derive(Default)]
 pub struct Registry {
-    callbacks: Vec<Box<RuleCallback>>,
+    callbacks: Vec<RuleCallback>,
     enter_walker_map: HashMap<NodeKey, Vec<CallbackIndex>>,
     leave_walker_map: HashMap<NodeKey, Vec<CallbackIndex>>,
     token_listeners: Vec<CallbackIndex>,
@@ -211,7 +211,7 @@ impl Registry {
         callback: Box<RuleCallback>,
     ) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(callback);
+        self.callbacks.push(*callback);
         match walker_type {
             WalkTy::Enter => {
                 self.enter_walker_map.entry(node_type).or_insert(vec![]).push(callback_index);
@@ -225,7 +225,7 @@ impl Registry {
 
     pub fn preprocess(&mut self, rule_name: &str, callback: Box<RuleCallback>) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(callback);
+        self.callbacks.push(*callback);
         self.preprocessors.push(callback_index);
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }
@@ -233,7 +233,7 @@ impl Registry {
     pub fn trigger_preprocess(&mut self, src: &str) -> String {
         let mut source = src.to_string();
         for callback in &self.preprocessors {
-            let callback = callback.clone();
+            let callback = *callback;
             let rule_name = self.callback_id_to_name.get(&callback).unwrap();
             let ctx: &mut dyn RuleContext = self.rule_ctx.get_mut(rule_name).unwrap().as_mut();
             let w = (self.callbacks[callback])(ctx, NodeWrapper::Source(source));
@@ -242,12 +242,12 @@ impl Registry {
                 _ => unreachable!(),
             }
         }
-        return source;
+        source
     }
 
     pub fn listen_token(&mut self, rule_name: &str, callback: Box<RuleCallback>) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(callback);
+        self.callbacks.push(*callback);
         self.token_listeners.push(callback_index);
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }

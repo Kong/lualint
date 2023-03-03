@@ -62,4 +62,3 @@ Set the `LUALINT_LOG` environment variable to one of the following values to con
 [Mozilla Public License Version 2.0](LICENSE)
 
 Translated with www.DeepL.com/Translator (free version)
-

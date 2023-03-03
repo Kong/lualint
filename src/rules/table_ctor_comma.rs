@@ -1,10 +1,6 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Token, TokenType},
-};
+use full_moon::{ast::punctuated::Pair, node::Node};
 
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, WalkTy, RuleInfo, Rule};
+use super::{LintReport, NodeKey, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(table_ctor_comma, "Require comma after last field of table ctor", "20230224", "");
 
@@ -13,7 +9,7 @@ pub struct TableCtorComma {
 }
 
 impl Rule for TableCtorComma {
-    fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
+    fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         let rule_name = "table_ctor_comma";
         rules.listen_enter(
             rule_name,
@@ -61,11 +57,10 @@ impl TableCtorComma {
                     if f.tokens().last().unwrap().end_position().unwrap().line() != close_brace_line
                     {
                         ctx.reports.push(LintReport {
-                            pos: f.tokens().last().unwrap().end_position().unwrap().clone().into(),
+                            pos: f.tokens().last().unwrap().end_position().unwrap().into(),
                             level: super::ReportLevel::Warning,
-                            msg: format!(
-                                "Table constructor should have a comma after the last field",
-                            ),
+                            msg: "Table constructor should have a comma after the last field"
+                                .to_string(),
                         });
                     }
                 }
@@ -73,6 +68,6 @@ impl TableCtorComma {
             }
         }
 
-        NodeWrapper::TableConstructor(node.to_owned())
+        NodeWrapper::TableConstructor(node)
     }
 }

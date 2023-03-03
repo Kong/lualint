@@ -3,7 +3,7 @@ use full_moon::{
     tokenizer::{Token, TokenType},
 };
 
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, RuleInfo, WalkTy, Rule};
+use super::{LintReport, NodeKey, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(
     func_separation,
@@ -25,10 +25,7 @@ impl RuleContext for FuncSeparation {
 
 impl Rule for FuncSeparation {
     fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
-        let min_linebreak = config
-            .get("min_line")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(2) as usize;
+        let min_linebreak = config.get("min_line").and_then(|v| v.as_u64()).unwrap_or(2) as usize;
 
         Self::apply(rules, min_linebreak)
     }
@@ -60,17 +57,17 @@ impl FuncSeparation {
                                 + Self::check(y.function_token().leading_trivia());
                 let empty_line = n_linebreak - 1;
                 if empty_line < ctx.min_empty_line {
-                    ctx.reports.push(LintReport { pos: x.body().end_token().end_position().clone().into(), level: super::ReportLevel::Warning,
+                    ctx.reports.push(LintReport { pos: x.body().end_token().end_position().into(), level: super::ReportLevel::Warning,
                         msg: format!(
                             "Function declaration '{}' should be separated from the previous function declaration by at least {} empty lines",
-                            y.name().to_string(),
+                            y.name(),
                             ctx.min_empty_line
                         ) });
                 }
             }
             prev_stmt = Some(stmt.clone());
         });
-        NodeWrapper::Block(block.to_owned())
+        NodeWrapper::Block(block)
     }
 
     pub fn check<'a>(iter: impl Iterator<Item = &'a Token>) -> usize {
@@ -85,6 +82,6 @@ impl FuncSeparation {
                 }
             }
         });
-        return n_linebreak;
+        n_linebreak
     }
 }

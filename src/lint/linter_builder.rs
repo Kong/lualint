@@ -1,4 +1,4 @@
-use crate::rules::{self, Registry, Rule, RuleContext, ALL_RULES};
+use crate::rules::{Registry, Rule, RuleContext};
 
 use super::Linter;
 

@@ -1,10 +1,6 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Token, TokenType},
-};
+use full_moon::node::Node;
 
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, WalkTy, RuleInfo, Rule};
+use super::{LintReport, NodeKey, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(one_line_before_else, "Require a blank line before else", "20230224", "");
 pub struct OneLineBeforeElse {
@@ -12,7 +8,7 @@ pub struct OneLineBeforeElse {
 }
 
 impl Rule for OneLineBeforeElse {
-    fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
+    fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         let rule_name = "one_line_before_else";
         rules.listen_enter(rule_name, NodeKey::If, Box::new(Self::enter_if));
 
@@ -59,9 +55,9 @@ impl OneLineBeforeElse {
                         return;
                     }
                     ctx.reports.push(LintReport {
-                        pos: else_if_token.start_position().unwrap().clone().into(),
+                        pos: else_if_token.start_position().unwrap().into(),
                         level: super::ReportLevel::Warning,
-                        msg: format!("There should be a line before else if",),
+                        msg: "There should be a line before else if".to_string(),
                     });
                 }
 
@@ -84,9 +80,9 @@ impl OneLineBeforeElse {
                     return NodeWrapper::If(if_stmt);
                 }
                 ctx.reports.push(LintReport {
-                    pos: else_token.start_position().unwrap().clone().into(),
+                    pos: else_token.start_position().unwrap().into(),
                     level: super::ReportLevel::Warning,
-                    msg: format!("There should be a line before else",),
+                    msg: "There should be a line before else".to_string(),
                 });
             }
         }

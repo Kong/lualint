@@ -1,12 +1,6 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Position, Token, TokenType},
-};
-
 use crate::lint::trim_lua_comments;
 
-use super::{LintReport, NodeKey, NodeWrapper, Pos, Registry, RuleContext, WalkTy, RuleInfo};
+use super::{LintReport, NodeWrapper, Pos, Registry, RuleContext, RuleInfo};
 
 decl_rule!(no_trailing_space, "Disallow trailing whitespace", "20230224", "");
 
@@ -35,12 +29,12 @@ impl NoTrailingWhitespace {
         let mut lineno = 0;
         source.lines().for_each(|line| {
             lineno += 1;
-            if line.ends_with(" ") || line.ends_with("\t") {
+            if line.ends_with(' ') || line.ends_with('\t') {
                 let col = line.len() - line.trim_end().len() + 1;
                 ctx.reports.push(LintReport {
                     pos: Pos::new(lineno, col),
                     level: super::ReportLevel::Warning,
-                    msg: format!("Line ends with trailing whitespace",),
+                    msg: "Line ends with trailing whitespace".to_string(),
                 });
             }
         });
