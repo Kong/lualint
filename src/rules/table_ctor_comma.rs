@@ -44,19 +44,15 @@ impl TableCtorComma {
             // If there is a last field and it is not on the same line as the closing brace
             // then we need to check if there is a comma after it
             let close_brace_line = node.braces().tokens().1.start_position().unwrap().line();
-            match last_field {
-                Pair::End(f) => {
-                    if f.tokens().last().unwrap().end_position().unwrap().line() != close_brace_line
-                    {
-                        ctx.reports.push(LintReport {
-                            pos: f.tokens().last().unwrap().end_position().unwrap().into(),
-                            level: super::ReportLevel::Warning,
-                            msg: "Table constructor should have a comma after the last field"
-                                .to_string(),
-                        });
-                    }
+            if let Pair::End(f) = last_field {
+                if f.tokens().last().unwrap().end_position().unwrap().line() != close_brace_line {
+                    ctx.reports.push(LintReport {
+                        pos: f.tokens().last().unwrap().end_position().unwrap().into(),
+                        level: super::ReportLevel::Warning,
+                        msg: "Table constructor should have a comma after the last field"
+                            .to_string(),
+                    });
                 }
-                _ => {}
             }
         }
 
