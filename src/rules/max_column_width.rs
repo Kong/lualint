@@ -1,10 +1,4 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Token, TokenType},
-};
-
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, RuleInfo, WalkTy, Rule};
+use super::{LintReport, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(max_column_width, "Maximum column width", "20230224", "max_col: 80");
 pub struct MaxColumnWidth {
@@ -18,7 +12,7 @@ pub struct MaxColumnWidth {
 impl Rule for MaxColumnWidth {
     fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
         let rule_name = "max_column_width";
-        rules.listen_token(rule_name, Box::new(Self::on_token));
+        rules.listen_token(rule_name, Self::on_token);
 
         let max_column_width = config["max_col"].as_u64().unwrap_or(80) as usize;
 
@@ -39,7 +33,7 @@ impl RuleContext for MaxColumnWidth {
 impl MaxColumnWidth {
     pub fn apply(rules: &mut Registry, max_column_width: usize) -> Self {
         let rule_name = "max_column_width";
-        rules.listen_token(rule_name, Box::new(Self::on_token));
+        rules.listen_token(rule_name, Self::on_token);
 
         Self { reports: vec![], max_column_width, _last_check_line: 0 }
     }
@@ -56,7 +50,7 @@ impl MaxColumnWidth {
                 return NodeWrapper::Token(token);
             }
             ctx.reports.push(LintReport {
-                pos: token.end_position().clone().into(),
+                pos: token.end_position().into(),
                 level: super::ReportLevel::Warning,
                 msg: format!(
                     "Line is expected to be at most {} characters, but is {} characters",

@@ -1,24 +1,17 @@
-use full_moon::ast::span::ContainedSpan;
-use full_moon::node;
 use full_moon::tokenizer::Token;
-use full_moon::{ast::*, tokenizer::TokenReference};
 
-use crate::rules::{self, NodeWrapper as NW};
-
-use crate::rules::{Registry, NodeKey, NodeWrapper};
+use crate::rules::Registry;
 
 #[derive(Default)]
 pub struct Linter {
     pub rule_registry: Registry,
 }
 
-impl Linter {
-}
+impl Linter {}
 
 pub struct LualintContext<'a> {
     pub linter: &'a mut Linter,
 }
-
 
 pub mod lint_visitor;
 pub mod linter_builder;
@@ -37,8 +30,7 @@ pub fn lint_tokens(tokens: &Vec<Token>, linter: &mut Linter) -> Vec<Token> {
 }
 
 pub fn lint_src(src: &str, linter: &mut Linter) -> String {
-    let source = linter.rule_registry.trigger_preprocess(src);
-    return source;
+    linter.rule_registry.trigger_preprocess(src)
 }
 
 // trim comments including inline comments and block comments
@@ -47,10 +39,12 @@ pub fn trim_lua_comments(input: &str) -> String {
     let tokens = tokens.unwrap();
     tokens
         .iter()
-        .filter(|token| match token.token_type() {
-            full_moon::tokenizer::TokenType::MultiLineComment { blocks: _, comment: _ } => false,
-            full_moon::tokenizer::TokenType::SingleLineComment { comment: _ } => false,
-            _ => true,
+        .filter(|token| {
+            !matches!(
+                token.token_type(),
+                full_moon::tokenizer::TokenType::MultiLineComment { blocks: _, comment: _ }
+                    | full_moon::tokenizer::TokenType::SingleLineComment { comment: _ }
+            )
         })
         .map(|token| token.to_string())
         .collect::<Vec<String>>()

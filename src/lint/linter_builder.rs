@@ -1,16 +1,13 @@
-use crate::rules::{self, Registry, Rule, RuleContext, ALL_RULES};
+use crate::rules::{Registry, Rule, RuleContext};
 
 use super::Linter;
 
+#[derive(Default)]
 pub struct LinterBuilder {
     rule_registry: Registry,
 }
 
 impl LinterBuilder {
-    pub fn new() -> LinterBuilder {
-        let rule_registry = Registry::default();
-        LinterBuilder { rule_registry }
-    }
 
     pub fn with_rule<T>(mut self, rule_name: &str, rule_config: &serde_json::Value) -> Self
     where

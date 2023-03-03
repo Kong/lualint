@@ -1,10 +1,8 @@
-
 use full_moon::ast::span::ContainedSpan;
-use full_moon::node;
-use full_moon::tokenizer::Token;
+
 use full_moon::{ast::*, tokenizer::TokenReference};
 
-use crate::rules::{self, NodeWrapper as NW};
+use crate::rules::NodeWrapper as NW;
 
 use full_moon::ast::punctuated::Pair;
 
@@ -19,8 +17,8 @@ use crate::lint::LualintContext;
 use crate::lint::Linter;
 
 pub fn lint_ast<'a>(ast: &'a Ast, linter: &'a mut Linter) -> (Ast, LualintContext<'a>) {
-    let mut ast = ast.clone();
-    let mut ctx = LualintContext { linter: linter };
+    let ast = ast.clone();
+    let mut ctx = LualintContext { linter };
     let new_block = lint_block(&mut ctx, ast.nodes());
     let new_eof = lint_token_ref(&mut ctx, ast.eof());
 
@@ -47,12 +45,12 @@ pub fn lint_token_ref(ctx: &mut LualintContext, token_ref: &TokenReference) -> T
 pub fn lint_block(ctx: &mut LualintContext, block: &Block) -> Block {
     let mut blk_w = NW::Block(block.to_owned());
 
-    blk_w = ctx.linter.rule_registry.trigger_walker(NodeKey::Block, WalkTy::Enter, blk_w);
+    ctx.linter.rule_registry.trigger_walker(NodeKey::Block, WalkTy::Enter, blk_w);
 
     let mut stmt_iterator = block.stmts_with_semicolon().peekable();
     let mut formatted_statements: Vec<(Stmt, Option<TokenReference>)> = Vec::new();
 
-    while let Some((stmt, semi)) = stmt_iterator.next() {
+    for (stmt, semi) in stmt_iterator.by_ref() {
         let stmt = lint_stmt(ctx, stmt);
         let semi = semi.clone();
         formatted_statements.push((stmt, semi))
@@ -83,7 +81,7 @@ pub fn lint_last_stmt(ctx: &mut LualintContext, last_stmt: &LastStmt) -> LastStm
         LastStmt::Break(break_stmt) => lint_break(ctx, break_stmt),
         _ => unreachable!("unimplemented last statement type: {:?}", last_stmt),
     };
-    let last_stmt_w = NW::LastStmt(last_stmt.to_owned());
+    let last_stmt_w = NW::LastStmt(last_stmt);
 
     // match last_stmt_w {
     // NW::LastStmt(last_stmt) => last_stmt,
@@ -166,7 +164,7 @@ pub fn lint_expr(ctx: &mut LualintContext, expression: &Expression) -> Expressio
 
 pub fn lint_break(ctx: &mut LualintContext, break_stmt: &TokenReference) -> LastStmt {
     let break_stmt = lint_token_ref(ctx, break_stmt);
-    return LastStmt::Break(break_stmt.to_owned());
+    LastStmt::Break(break_stmt)
 }
 
 pub fn lint_stmt(ctx: &mut LualintContext, stmt: &Stmt) -> Stmt {
@@ -264,7 +262,7 @@ pub fn lint_table_ctor(
         NW::TableConstructor(node),
     );
 
-    must_match!(node_w, NW::TableConstructor).to_owned()
+    must_match!(node_w, NW::TableConstructor)
 }
 
 pub fn lint_field(ctx: &mut LualintContext, field: Field) -> Field {
@@ -284,18 +282,18 @@ pub fn lint_field(ctx: &mut LualintContext, field: Field) -> Field {
 }
 
 // todo: lint_assignment
-pub fn lint_assignment(ctx: &mut LualintContext, assignment_stmt: &Assignment) -> Stmt {
-    return Stmt::Assignment(assignment_stmt.to_owned());
+pub fn lint_assignment(_ctx: &mut LualintContext, assignment_stmt: &Assignment) -> Stmt {
+    Stmt::Assignment(assignment_stmt.to_owned())
 }
 
 // todo: lint_do
-pub fn lint_do(ctx: &mut LualintContext, do_stmt: &Do) -> Stmt {
-    return Stmt::Do(do_stmt.to_owned());
+pub fn lint_do(_ctx: &mut LualintContext, do_stmt: &Do) -> Stmt {
+    Stmt::Do(do_stmt.to_owned())
 }
 
 // todo: lint_func_call
-pub fn lint_func_call(ctx: &mut LualintContext, func_call_stmt: &FunctionCall) -> Stmt {
-    return Stmt::FunctionCall(func_call_stmt.to_owned());
+pub fn lint_func_call(_ctx: &mut LualintContext, func_call_stmt: &FunctionCall) -> Stmt {
+    Stmt::FunctionCall(func_call_stmt.to_owned())
 }
 
 pub fn lint_func_decl(ctx: &mut LualintContext, func_decl_stmt: &FunctionDeclaration) -> Stmt {
@@ -313,7 +311,7 @@ pub fn lint_func_decl(ctx: &mut LualintContext, func_decl_stmt: &FunctionDeclara
     let rt = NW::FunctionDeclaration(func_decl_stmt);
     let rt = ctx.linter.rule_registry.notify_leave(NodeKey::FuncDecl, rt);
 
-    return Stmt::FunctionDeclaration(must_match!(rt, NW::FunctionDeclaration));
+    Stmt::FunctionDeclaration(must_match!(rt, NW::FunctionDeclaration))
 }
 
 pub fn lint_func_name(ctx: &mut LualintContext, func_name: &FunctionName) -> FunctionName {
@@ -337,7 +335,7 @@ pub fn lint_func_name(ctx: &mut LualintContext, func_name: &FunctionName) -> Fun
     let rt = NW::FunctionName(func_name);
     let rt = ctx.linter.rule_registry.notify_leave(NodeKey::FuncName, rt);
 
-    return must_match!(rt, NW::FunctionName);
+    must_match!(rt, NW::FunctionName)
 }
 
 pub fn lint_generic_for(ctx: &mut LualintContext, generic_for_stmt: &GenericFor) -> Stmt {
@@ -345,7 +343,7 @@ pub fn lint_generic_for(ctx: &mut LualintContext, generic_for_stmt: &GenericFor)
     let mut rt = NW::GenericFor(generic_for_stmt.to_owned());
     rt = ctx.linter.rule_registry.notify_enter(NodeKey::GenericFor, rt);
 
-    return Stmt::GenericFor(must_match!(rt, NW::GenericFor));
+    Stmt::GenericFor(must_match!(rt, NW::GenericFor))
 }
 
 pub fn lint_if(ctx: &mut LualintContext, if_stmt: &If) -> Stmt {
@@ -400,7 +398,7 @@ pub fn lint_if(ctx: &mut LualintContext, if_stmt: &If) -> Stmt {
     let rt = NW::If(if_stmt);
     let rt = ctx.linter.rule_registry.notify_leave(NodeKey::If, rt);
 
-    return Stmt::If(must_match!(rt, NW::If));
+    Stmt::If(must_match!(rt, NW::If))
 }
 
 pub fn lint_local_assign(ctx: &mut LualintContext, las: &LocalAssignment) -> Stmt {
@@ -460,7 +458,7 @@ pub fn lint_local_func(ctx: &mut LualintContext, local_func_stmt: &LocalFunction
         .with_local_token(local_token)
         .with_function_token(function_token)
         .with_body(func_body);
-    return Stmt::LocalFunction(f);
+    Stmt::LocalFunction(f)
 }
 
 /// Formats a FunctionBody node
@@ -498,8 +496,8 @@ pub fn lint_parameters(
 
 pub fn lint_parameter(ctx: &mut LualintContext, parameter: &mut Parameter) -> Parameter {
     match parameter {
-        Parameter::Name(name) => Parameter::Name(lint_token_ref(ctx, &name)),
-        Parameter::Ellipse(vararg) => Parameter::Ellipse(lint_token_ref(ctx, &vararg)),
+        Parameter::Name(name) => Parameter::Name(lint_token_ref(ctx, name)),
+        Parameter::Ellipse(vararg) => Parameter::Ellipse(lint_token_ref(ctx, vararg)),
         _ => parameter.to_owned(),
     }
 }
@@ -517,15 +515,9 @@ pub fn lint_numeric_for(ctx: &mut LualintContext, numeric_for: &NumericFor) -> S
     let start_end_comma = lint_token_ref(ctx, numeric_for.start_end_comma());
     let end = lint_expr(ctx, numeric_for.end());
 
-    let end_step_comma = match numeric_for.end_step_comma() {
-        Some(comma) => Some(lint_token_ref(ctx, comma)),
-        None => None,
-    };
+    let end_step_comma = numeric_for.end_step_comma().map(|comma| lint_token_ref(ctx, comma));
 
-    let step = match numeric_for.step() {
-        Some(step) => Some(lint_expr(ctx, step)),
-        None => None,
-    };
+    let step = numeric_for.step().map(|step| lint_expr(ctx, step));
 
     let do_token = lint_token_ref(ctx, numeric_for.do_token());
     let block = lint_block(ctx, numeric_for.block());
@@ -551,13 +543,13 @@ pub fn lint_numeric_for(ctx: &mut LualintContext, numeric_for: &NumericFor) -> S
 
     let rt = must_match!(rt, NW::NumericFor);
 
-    return Stmt::NumericFor(rt);
+    Stmt::NumericFor(rt)
 }
 
-pub fn lint_repeat(ctx: &mut LualintContext, repeat_stmt: &Repeat) -> Stmt {
-    return Stmt::Repeat(repeat_stmt.to_owned());
+pub fn lint_repeat(_ctx: &mut LualintContext, repeat_stmt: &Repeat) -> Stmt {
+    Stmt::Repeat(repeat_stmt.to_owned())
 }
 
-pub fn lint_while(ctx: &mut LualintContext, while_stmt: &While) -> Stmt {
-    return Stmt::While(while_stmt.to_owned());
+pub fn lint_while(_ctx: &mut LualintContext, while_stmt: &While) -> Stmt {
+    Stmt::While(while_stmt.to_owned())
 }

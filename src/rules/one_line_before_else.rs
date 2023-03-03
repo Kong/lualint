@@ -1,10 +1,6 @@
-use full_moon::{
-    ast::{punctuated::Pair, Stmt},
-    node::Node,
-    tokenizer::{Token, TokenType},
-};
+use full_moon::node::Node;
 
-use super::{LintReport, NodeKey, NodeWrapper, Registry, RuleContext, WalkTy, RuleInfo, Rule};
+use super::{LintReport, NodeKey, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
 
 decl_rule!(one_line_before_else, "Require a blank line before else", "20230224", "");
 pub struct OneLineBeforeElse {
@@ -12,9 +8,9 @@ pub struct OneLineBeforeElse {
 }
 
 impl Rule for OneLineBeforeElse {
-    fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
+    fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
         let rule_name = "one_line_before_else";
-        rules.listen_enter(rule_name, NodeKey::If, Box::new(Self::enter_if));
+        rules.listen_enter(rule_name, NodeKey::If, Self::enter_if);
 
         Self { reports: vec![] }
     }
@@ -33,7 +29,7 @@ impl RuleContext for OneLineBeforeElse {
 impl OneLineBeforeElse {
     pub fn apply(rules: &mut Registry) -> Self {
         let rule_name = "one_line_before_else";
-        rules.listen_enter(rule_name, NodeKey::If, Box::new(Self::enter_if));
+        rules.listen_enter(rule_name, NodeKey::If, Self::enter_if);
 
         Self { reports: vec![] }
     }
@@ -48,7 +44,7 @@ impl OneLineBeforeElse {
             prev_block_last_stmt_trail = Some(prev_block_last_stmt.tokens().last().unwrap());
         }
 
-        if_stmt.else_if().map(|else_ifs| {
+        if let Some(else_ifs) = if_stmt.else_if() {
             else_ifs.iter().for_each(|else_if| {
                 // if we got prev_block_last_stmt_trail and it is at -1 line of current else if token
                 let else_if_token = else_if.else_if_token();
@@ -59,9 +55,9 @@ impl OneLineBeforeElse {
                         return;
                     }
                     ctx.reports.push(LintReport {
-                        pos: else_if_token.start_position().unwrap().clone().into(),
+                        pos: else_if_token.start_position().unwrap().into(),
                         level: super::ReportLevel::Warning,
-                        msg: format!("There should be a line before else if",),
+                        msg: "There should be a line before else if".to_string(),
                     });
                 }
 
@@ -71,7 +67,7 @@ impl OneLineBeforeElse {
                         Some(prev_block_last_stmt.tokens().last().unwrap());
                 }
             })
-        });
+        }
 
         // check for "else"
 
@@ -84,9 +80,9 @@ impl OneLineBeforeElse {
                     return NodeWrapper::If(if_stmt);
                 }
                 ctx.reports.push(LintReport {
-                    pos: else_token.start_position().unwrap().clone().into(),
+                    pos: else_token.start_position().unwrap().into(),
                     level: super::ReportLevel::Warning,
-                    msg: format!("There should be a line before else",),
+                    msg: "There should be a line before else".to_string(),
                 });
             }
         }
