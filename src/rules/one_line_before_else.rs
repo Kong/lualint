@@ -44,7 +44,7 @@ impl OneLineBeforeElse {
             prev_block_last_stmt_trail = Some(prev_block_last_stmt.tokens().last().unwrap());
         }
 
-        if_stmt.else_if().map(|else_ifs| {
+        if let Some(else_ifs) = if_stmt.else_if() {
             else_ifs.iter().for_each(|else_if| {
                 // if we got prev_block_last_stmt_trail and it is at -1 line of current else if token
                 let else_if_token = else_if.else_if_token();
@@ -67,7 +67,7 @@ impl OneLineBeforeElse {
                         Some(prev_block_last_stmt.tokens().last().unwrap());
                 }
             })
-        });
+        }
 
         // check for "else"
 

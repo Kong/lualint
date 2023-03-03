@@ -30,8 +30,7 @@ pub fn lint_tokens(tokens: &Vec<Token>, linter: &mut Linter) -> Vec<Token> {
 }
 
 pub fn lint_src(src: &str, linter: &mut Linter) -> String {
-    let source = linter.rule_registry.trigger_preprocess(src);
-    source
+    linter.rule_registry.trigger_preprocess(src)
 }
 
 // trim comments including inline comments and block comments

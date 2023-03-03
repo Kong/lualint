@@ -164,7 +164,7 @@ pub fn lint_expr(ctx: &mut LualintContext, expression: &Expression) -> Expressio
 
 pub fn lint_break(ctx: &mut LualintContext, break_stmt: &TokenReference) -> LastStmt {
     let break_stmt = lint_token_ref(ctx, break_stmt);
-    LastStmt::Break(break_stmt.to_owned())
+    LastStmt::Break(break_stmt)
 }
 
 pub fn lint_stmt(ctx: &mut LualintContext, stmt: &Stmt) -> Stmt {
