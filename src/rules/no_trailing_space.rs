@@ -17,7 +17,7 @@ impl RuleContext for NoTrailingWhitespace {
 impl NoTrailingWhitespace {
     pub fn apply(rules: &mut Registry) -> Self {
         let rule_name = "no_trailing_space";
-        rules.preprocess(rule_name, Box::new(Self::preprocess));
+        rules.preprocess(rule_name, Self::preprocess);
 
         Self { reports: vec![] }
     }

@@ -223,9 +223,9 @@ impl Registry {
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }
 
-    pub fn preprocess(&mut self, rule_name: &str, callback: Box<RuleCallback>) {
+    pub fn preprocess(&mut self, rule_name: &str, callback: RuleCallback) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(*callback);
+        self.callbacks.push(callback);
         self.preprocessors.push(callback_index);
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }
@@ -245,9 +245,9 @@ impl Registry {
         source
     }
 
-    pub fn listen_token(&mut self, rule_name: &str, callback: Box<RuleCallback>) {
+    pub fn listen_token(&mut self, rule_name: &str, callback: RuleCallback) {
         let callback_index = self.callbacks.len();
-        self.callbacks.push(*callback);
+        self.callbacks.push(callback);
         self.token_listeners.push(callback_index);
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }

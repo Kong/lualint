@@ -14,7 +14,7 @@ impl RuleContext for EofBlankLine {
 
 impl Rule for EofBlankLine {
     fn apply(rules: &mut Registry, _config: &serde_json::Value) -> Self {
-        rules.preprocess(RULE_NAME, Box::new(Self::preprocess));
+        rules.preprocess(RULE_NAME, Self::preprocess);
         Self { reports: vec![] }
     }
 
