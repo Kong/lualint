@@ -36,7 +36,7 @@ pub(crate) fn handle_run_command(filename: &str, enabled_rules: &str) {
             return;
         }
     };
-    let mut linter_builder = lint::LinterBuilder::new();
+    let mut linter_builder = lint::LinterBuilder::default();
     for (rule_name, rule_config) in enabled_rules_vec {
         match rule_name.as_str() {
             "eof_blank_line" => {

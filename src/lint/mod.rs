@@ -39,10 +39,12 @@ pub fn trim_lua_comments(input: &str) -> String {
     let tokens = tokens.unwrap();
     tokens
         .iter()
-        .filter(|token| match token.token_type() {
-            full_moon::tokenizer::TokenType::MultiLineComment { blocks: _, comment: _ } => false,
-            full_moon::tokenizer::TokenType::SingleLineComment { comment: _ } => false,
-            _ => true,
+        .filter(|token| {
+            !matches!(
+                token.token_type(),
+                full_moon::tokenizer::TokenType::MultiLineComment { blocks: _, comment: _ }
+                    | full_moon::tokenizer::TokenType::SingleLineComment { comment: _ }
+            )
         })
         .map(|token| token.to_string())
         .collect::<Vec<String>>()
