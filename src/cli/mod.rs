@@ -124,7 +124,7 @@ pub(crate) fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
         println!("File is not a lua file: {}", filename);
         return;
     }
-    let exit_on_err = true; // TODO: make this configurable
+    let _exit_on_err = true; // TODO: make this configurable
     let processed = match std::fs::read_to_string(filename) {
         Ok(lua_src) => {
             let out = drive(&lua_src, linter);
@@ -175,7 +175,7 @@ fn format_report(filename: &str, report: &LintReport) -> String {
         fn underline(colno: usize, line: &str) -> String {
             let mut underline = String::new();
 
-            let mut start = colno;
+            let start = colno;
             let end = colno;
             let offset = start - 1;
             let line_chars = line.chars();
@@ -261,8 +261,8 @@ fn format_report(filename: &str, report: &LintReport) -> String {
         }
     }
 
-    let ret = format_impl(filename, report, line, continued_line);
-    ret
+    
+    format_impl(filename, report, line, continued_line)
 }
 
 fn exit_on_lint_errors(filename: &str, linter: &mut Linter) {
@@ -274,11 +274,11 @@ fn exit_on_lint_errors(filename: &str, linter: &mut Linter) {
             report_tmp.pos.file = filename.to_string();
             rule_report_str.push_str(&format!("{}\n", format_report(filename, &report_tmp)));
         });
-        if rule_report_str.len() > 0 {
+        if !rule_report_str.is_empty() {
             report_str.push_str(&format!("[rule] {}:\n{}", name, rule_report_str));
         }
     });
-    if report_str.len() == 0 {
+    if report_str.is_empty() {
         println!("== lint report");
         println!("ok");
     } else {
@@ -293,6 +293,6 @@ pub fn drive(lua_src: &str, linter: &mut Linter) -> String {
     let tokens = lint::lint_tokens(&tokens, linter);
     let input_ast = full_moon::ast::Ast::from_tokens(tokens).unwrap();
 
-    let (_formatted_ast, ctx) = lint::lint_visitor::lint_ast(&input_ast, linter);
-    return lua_src.to_string();
+    let (_formatted_ast, _ctx) = lint::lint_visitor::lint_ast(&input_ast, linter);
+    lua_src
 }
