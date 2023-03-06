@@ -159,13 +159,20 @@ fn format_report(filename: &str, report: &LintReport) -> String {
     } else {
         None
     };
+    pub fn make_space(n: usize) -> String {
+        let mut s = String::new();
+        for _ in 0..n.to_string().len() {
+            s.push(' ');
+        }
+        s
+    }
     pub(crate) fn format_impl(
         filename: &str,
         report: &LintReport,
         line: (usize, &str),
         continued_line: Option<(usize, &str)>,
     ) -> String {
-        let spacing = " ";
+        let spacing = make_space(line.0);
         let lineno = report.pos.line;
         let colno = report.pos.col - 1;
         let path = filename;
@@ -177,7 +184,7 @@ fn format_report(filename: &str, report: &LintReport) -> String {
 
             let start = colno;
             let end = colno;
-            let offset = start - 1;
+            let offset = std::cmp::max(start, 1) - 1;
             let line_chars = line.chars();
 
             for c in line_chars.take(offset) {
@@ -261,7 +268,6 @@ fn format_report(filename: &str, report: &LintReport) -> String {
         }
     }
 
-    
     format_impl(filename, report, line, continued_line)
 }
 
@@ -294,5 +300,7 @@ pub fn drive(lua_src: &str, linter: &mut Linter) -> String {
     let input_ast = full_moon::ast::Ast::from_tokens(tokens).unwrap();
 
     let (_formatted_ast, _ctx) = lint::lint_visitor::lint_ast(&input_ast, linter);
+    // should return stringified _formatted_ast
+    //   but currently we don't provide a way to do that
     lua_src
 }

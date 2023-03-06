@@ -1,3 +1,4 @@
+use full_moon::ast::lua52::{Goto, Label};
 use full_moon::ast::span::ContainedSpan;
 
 use full_moon::{ast::*, tokenizer::TokenReference};
@@ -180,6 +181,8 @@ pub fn lint_stmt(ctx: &mut LualintContext, stmt: &Stmt) -> Stmt {
         Stmt::NumericFor(numeric_for_stmt) => lint_numeric_for(ctx, numeric_for_stmt),
         Stmt::Repeat(repeat_stmt) => lint_repeat(ctx, repeat_stmt),
         Stmt::While(while_stmt) => lint_while(ctx, while_stmt),
+        Stmt::Goto(goto_stmt) => lint_goto(ctx, goto_stmt),
+        Stmt::Label(label_stmt) => lint_label(ctx, label_stmt),
         _ => unreachable!("unimplemented statement type: {:?}", stmt),
     }
 }
@@ -401,20 +404,26 @@ pub fn lint_if(ctx: &mut LualintContext, if_stmt: &If) -> Stmt {
     Stmt::If(must_match!(rt, NW::If))
 }
 
+// this can be a assignment or just decl
+// assign: var a = b;
+// decl: var a;
 pub fn lint_local_assign(ctx: &mut LualintContext, las: &LocalAssignment) -> Stmt {
     // TODO: Lint the local assignment
     let name_list = las.names().to_owned();
     let expr_list = lint_punctuated(ctx, las.expressions(), lint_expr);
     let equal_token = las.equal_token().to_owned();
     let local_token = las.local_token().to_owned();
-
     let local_assignment = LocalAssignment::new(name_list);
     Stmt::LocalAssignment(
         local_assignment
             .with_local_token(local_token)
-            .with_equal_token(Some(equal_token.unwrap().to_owned()))
+            .with_equal_token(equal_token.to_owned().cloned())
             .with_expressions(expr_list),
     )
+}
+
+fn print_token_ref(token_ref: &TokenReference) -> String {
+    format!("{}:{}", token_ref.start_position().line(), token_ref.start_position().character())
 }
 
 pub fn lint_punctuated<T, F>(
@@ -546,10 +555,82 @@ pub fn lint_numeric_for(ctx: &mut LualintContext, numeric_for: &NumericFor) -> S
     Stmt::NumericFor(rt)
 }
 
-pub fn lint_repeat(_ctx: &mut LualintContext, repeat_stmt: &Repeat) -> Stmt {
-    Stmt::Repeat(repeat_stmt.to_owned())
+pub fn lint_repeat(ctx: &mut LualintContext, repeat_stmt: &Repeat) -> Stmt {
+    // Stmt::Repeat(repeat_stmt.to_owned())
+    let mut rt = NW::Repeat(repeat_stmt.to_owned());
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::Repeat, WalkTy::Enter, rt);
+
+    let repeat_stmt = must_match!(rt, NW::Repeat);
+    let repeat_token = lint_token_ref(ctx, repeat_stmt.repeat_token());
+    let block = lint_block(ctx, repeat_stmt.block());
+    let until_token = lint_token_ref(ctx, repeat_stmt.until_token());
+    let until = lint_expr(ctx, repeat_stmt.until());
+
+    let repeat_stmt = repeat_stmt
+        .to_owned()
+        .with_repeat_token(repeat_token)
+        .with_block(block)
+        .with_until_token(until_token)
+        .with_until(until);
+
+    rt = NW::Repeat(repeat_stmt);
+
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::Repeat, WalkTy::Leave, rt);
+
+    let rt = must_match!(rt, NW::Repeat);
+
+    Stmt::Repeat(rt)
 }
 
-pub fn lint_while(_ctx: &mut LualintContext, while_stmt: &While) -> Stmt {
-    Stmt::While(while_stmt.to_owned())
+pub fn lint_while(ctx: &mut LualintContext, while_stmt: &While) -> Stmt {
+    // Stmt::While(while_stmt.to_owned())
+    let mut rt = NW::While(while_stmt.to_owned());
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::While, WalkTy::Enter, rt);
+
+    let while_stmt = must_match!(rt, NW::While);
+    let while_token = lint_token_ref(ctx, while_stmt.while_token());
+    let condition = lint_expr(ctx, while_stmt.condition());
+    let do_token = lint_token_ref(ctx, while_stmt.do_token());
+    let block = lint_block(ctx, while_stmt.block());
+    let end_token = lint_token_ref(ctx, while_stmt.end_token());
+
+    let while_stmt = while_stmt
+        .to_owned()
+        .with_while_token(while_token)
+        .with_condition(condition)
+        .with_do_token(do_token)
+        .with_block(block)
+        .with_end_token(end_token);
+
+    rt = NW::While(while_stmt);
+
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::While, WalkTy::Leave, rt);
+
+    let rt = must_match!(rt, NW::While);
+
+    Stmt::While(rt)
+}
+
+pub fn lint_goto(ctx: &mut LualintContext, goto_stmt: &Goto) -> Stmt {
+    // Stmt::Goto(goto_stmt.to_owned())
+    let mut rt = NW::Goto(goto_stmt.to_owned());
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::Goto, WalkTy::Enter, rt);
+
+    let goto_stmt = must_match!(rt, NW::Goto);
+    let goto_token = lint_token_ref(ctx, goto_stmt.goto_token());
+    let label_name = lint_token_ref(ctx, goto_stmt.label_name());
+
+    let goto_stmt = goto_stmt.to_owned().with_goto_token(goto_token).with_label_name(label_name);
+
+    rt = NW::Goto(goto_stmt);
+
+    rt = ctx.linter.rule_registry.trigger_walker(NodeKey::Goto, WalkTy::Leave, rt);
+
+    let rt = must_match!(rt, NW::Goto);
+
+    Stmt::Goto(rt)
+}
+
+pub fn lint_label(_ctx: &mut LualintContext, label_stmt: &Label) -> Stmt {
+    Stmt::Label(label_stmt.to_owned())
 }

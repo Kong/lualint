@@ -19,7 +19,7 @@ fn main() {
         .format(log_fmt)
         .init();
     let args = <cli::Args as clap::Parser>::parse();
-    log::info!("CLI Args = {:?}", args);
+    log::trace!("CLI Args = {:?}", args);
     rules::init_all();
     if let Some(cmd) = &args.command {
         match cmd {
