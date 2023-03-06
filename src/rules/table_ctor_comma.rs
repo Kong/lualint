@@ -47,10 +47,9 @@ impl TableCtorComma {
             if let Pair::End(f) = last_field {
                 if f.tokens().last().unwrap().end_position().unwrap().line() != close_brace_line {
                     ctx.reports.push(LintReport {
-                        pos: f.tokens().last().unwrap().end_position().unwrap().into(),
+                        pos: last_field.end_position().clone().unwrap().into(),
                         level: super::ReportLevel::Warning,
-                        msg: "Table constructor should have a comma after the last field"
-                            .to_string(),
+                        msg: format!("Table constructor should have a comma after the last field.")
                     });
                 }
             }

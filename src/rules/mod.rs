@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use downcast_rs::{impl_downcast, Downcast};
 use full_moon::{
-    ast::*,
+    ast::{*, lua52::Goto},
     tokenizer::{Position, Token, TokenReference},
 };
 
@@ -91,6 +91,7 @@ pub enum NodeKey {
     Block,
     Eof,
     Stmt,
+    Goto,
     LastStmt,
     Return,
     Break,
@@ -118,6 +119,7 @@ pub enum NodeKey {
 pub enum NodeWrapper {
     Source(String),
     Token(Token),
+    Goto(Goto),
     TokenRef(TokenReference),
     Block(Block),
     LastStmt(LastStmt),

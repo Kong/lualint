@@ -53,7 +53,7 @@ impl MaxColumnWidth {
                 pos: token.end_position().into(),
                 level: super::ReportLevel::Warning,
                 msg: format!(
-                    "Line is expected to be at most {} characters, but is {} characters",
+                    "Line is expected to be at most {} characters, but is more than {} characters",
                     ctx.max_column_width, real_len
                 ),
             });
