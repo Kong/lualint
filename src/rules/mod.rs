@@ -31,6 +31,7 @@ macro_rules! decl_rule {
         }
     };
 }
+
 macro_rules! decl_rules {
     ($($mod_name:ident),+) => {
         $(pub mod $mod_name;)+
@@ -46,7 +47,8 @@ decl_rules!(
     max_column_width,
     no_trailing_space,
     one_line_before_else,
-    table_ctor_comma
+    table_ctor_comma,
+    operator_spacing
 );
 
 pub struct RuleInfo {

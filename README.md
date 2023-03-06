@@ -49,7 +49,70 @@ Set the `LUALINT_LOG` environment variable to one of the following values to con
 
 - [x] Show filename
 - [x] Exit code
-- [ ] Preview error line
+- [x] Preview error line
+
+## How to add a new rule
+
+Assume that we want to add a rule with the name `operator_spacing`, which requires that there be a space on each side of the operator.
+
+1. In `src/rules/mod.rs`, add `operator_spacing` to `decl_rules!` macro call.
+
+    ```rust
+    decl_rules!(
+        // ...
+        operator_spacing,
+    );
+    ```
+
+2. In `src/cli/mod.rs`, chain the `operator_spacing` rule to the lint builder.
+
+    ```rust
+        "operator_spacing" => {
+            linter_builder = linter_builder
+                .with_rule::<rules::operator_spacing::OperatorSpacing>(&rule_name, &rule_config);
+        }
+    ```
+
+3. Write unit tests for the rule in `tests/operator_spacing.rs`.
+
+4. Implement the rule in `src/rules/operator_spacing.rs`.
+
+    ```rust
+    use super::{LintReport, NodeWrapper, Registry, Rule, RuleContext, RuleInfo};
+
+    decl_rule!(operator_spacing, "Operator spacing", "20230224", "");
+
+    pub struct OperatorSpacing {
+        pub reports: Vec<LintReport>,
+    }
+
+    impl Rule for OperatorSpacing {
+        fn apply(rules: &mut Registry, config: &serde_json::Value) -> Self {
+            let rule_name = "operator_spacing";
+
+            Self { reports: vec![] }
+        }
+
+        fn context(&self) -> &dyn RuleContext {
+            self
+        }
+    }
+
+    impl RuleContext for OperatorSpacing {
+        fn get_reports(&self) -> &Vec<LintReport> {
+            &self.reports
+        }
+    }
+    ```
+
+    `decl_rule` is a macro that generates the some meta info of the rule.
+
+    - Rulename
+    - Rule description
+    - Rule Version (We use the date of the rule was updated)
+    If it is updated on the same day, add a incremental number to the end of the date, separated by an `-`.
+    e.g. `20230224`, `20230224-1`, `20230224-2`, etc.
+    - Rule configuration example, which is expected to be a JSON Object string.
 
 ## Reference
 
