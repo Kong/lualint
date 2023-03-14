@@ -126,6 +126,11 @@ pub fn lint_expr_block(ctx: &mut LualintContext, expression: &Expression) -> Exp
 }
 
 pub fn lint_expr(ctx: &mut LualintContext, expression: &Expression) -> Expression {
+
+    let mut expr_w = NW::Expr(expression.to_owned());
+
+    ctx.linter.rule_registry.trigger_walker(NodeKey::Expr, WalkTy::Enter, expr_w);
+
     match expression {
         Expression::BinaryOperator { lhs, binop, rhs } => Expression::BinaryOperator {
             lhs: Box::new(lint_expr_block(ctx, lhs)),
@@ -422,6 +427,7 @@ pub fn lint_local_assign(ctx: &mut LualintContext, las: &LocalAssignment) -> Stm
     )
 }
 
+#[allow(dead_code)]
 fn print_token_ref(token_ref: &TokenReference) -> String {
     format!("{}:{}", token_ref.start_position().line(), token_ref.start_position().character())
 }

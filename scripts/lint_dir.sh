@@ -7,7 +7,7 @@ SRC_DIR=$1
 # glob all *.lua file
 for file in $(find $SRC_DIR -name "*.lua"); do
     echo "Testing $file"
-    sh ./scripts/test_single.sh $file binary
+    sh ./scripts/lint_single.sh $file binary
 
     if [ $? -ne 0 ]; then
         echo "Failed to test $file"

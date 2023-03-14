@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 /*
 This file is from the StyLua project
  */
@@ -26,26 +28,30 @@ pub enum FormatTriviaType {
     Replace(Vec<Token>),
     /// Trivia will not be changed
     NoChange,
+    Get(RefCell<Token>),
 }
 
 /// Strips all leading and trailing trivia from a specific node.
 /// This is useful if we need to use the node to calculate sizing, whilst we do not want trivia included
 pub fn strip_trivia<T>(item: &T) -> T
 where
-    T: UpdateLeadingTrivia + UpdateTrailingTrivia, {
+    T: UpdateLeadingTrivia + UpdateTrailingTrivia,
+{
     item.update_leading_trivia(FormatTriviaType::Replace(vec![]))
         .update_trailing_trivia(FormatTriviaType::Replace(vec![]))
 }
 
 pub fn strip_leading_trivia<T>(item: &T) -> T
 where
-    T: UpdateLeadingTrivia, {
+    T: UpdateLeadingTrivia,
+{
     item.update_leading_trivia(FormatTriviaType::Replace(vec![]))
 }
 
 pub fn strip_trailing_trivia<T>(item: &T) -> T
 where
-    T: UpdateTrailingTrivia, {
+    T: UpdateTrailingTrivia,
+{
     item.update_trailing_trivia(FormatTriviaType::Replace(vec![]))
 }
 
@@ -71,7 +77,8 @@ where
 {
     fn update_leading_trivia(&self, leading_trivia: FormatTriviaType) -> Self
     where
-        Self: std::marker::Sized, {
+        Self: std::marker::Sized,
+    {
         self.update_trivia(leading_trivia, FormatTriviaType::NoChange)
     }
 }
@@ -82,7 +89,8 @@ where
 {
     fn update_trailing_trivia(&self, trailing_trivia: FormatTriviaType) -> Self
     where
-        Self: std::marker::Sized, {
+        Self: std::marker::Sized,
+    {
         self.update_trivia(FormatTriviaType::NoChange, trailing_trivia)
     }
 }
@@ -101,6 +109,12 @@ impl UpdateTrivia for TokenReference {
             }
             FormatTriviaType::Replace(trivia) => trivia,
             FormatTriviaType::NoChange => self.leading_trivia().map(|x| x.to_owned()).collect(),
+            FormatTriviaType::Get(o) => {
+                let ob = o.borrow_mut();
+                let r = self.leading_trivia().map(|x| x.to_owned()).collect();
+                ob = r.last().clone();
+                r
+            }
         };
         let added_trailing_trivia = match trailing_trivia {
             FormatTriviaType::Append(trivia) => {
@@ -110,7 +124,9 @@ impl UpdateTrivia for TokenReference {
                 current
             }
             FormatTriviaType::Replace(trivia) => trivia,
-            FormatTriviaType::NoChange => self.trailing_trivia().map(|x| x.to_owned()).collect(),
+            FormatTriviaType::NoChange | FormatTriviaType::Get(o) => {
+                self.trailing_trivia().map(|x| x.to_owned()).collect()
+            }
         };
         TokenReference::new(added_leading_trivia, self.token().to_owned(), added_trailing_trivia)
     }

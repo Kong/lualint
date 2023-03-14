@@ -1,6 +1,7 @@
 {
     // "max_column_width": {},
     // "no_trailing_space": {},
+    // "operator_spacing": {},
     "one_line_before_else": {},
     "eof_blank_line": {},
     "table_ctor_comma": {},

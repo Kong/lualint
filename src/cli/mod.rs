@@ -66,6 +66,13 @@ pub(crate) fn handle_run_command(filename: &str, enabled_rules: &str) {
                 linter_builder = linter_builder
                     .with_rule::<rules::table_ctor_comma::TableCtorComma>(&rule_name, &rule_config);
             }
+            "operator_spacing" => {
+                linter_builder = linter_builder
+                    .with_rule::<rules::operator_spacing::OperatorSpacing>(
+                        &rule_name,
+                        &rule_config,
+                    );
+            }
             _ => {
                 error!("Unknown rule: {}", rule_name);
                 return;
