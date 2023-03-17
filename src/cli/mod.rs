@@ -7,13 +7,13 @@ use lualint::{
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub(crate) struct Args {
+pub struct Args {
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
-pub(crate) enum Commands {
+pub enum Commands {
     Run {
         /// File to lint
         filename: String,
@@ -26,7 +26,7 @@ pub(crate) enum Commands {
 type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
-pub(crate) fn handle_run_command(filename: &str, enabled_rules: &str) {
+pub fn handle_run_command(filename: &str, enabled_rules: &str) {
     let enabled_rules_vec: Vec<(RuleName, RuleConfig)> = match parse_enabled_rules(enabled_rules) {
         Ok(enabled_rules) => enabled_rules,
         Err(e) => {
@@ -92,7 +92,7 @@ fn parse_enabled_rules(
     Ok(enabled_rules)
 }
 
-pub(crate) fn print_rules() {
+pub fn print_rules() {
     // "name" "description" "version" "config_example"
     println!(
         "{:22} {:10} {:56} {:18}",
@@ -112,7 +112,7 @@ pub(crate) fn print_rules() {
     });
 }
 
-pub(crate) fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
+pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
     let is_file_existing = std::path::Path::new(filename).exists();
     if !is_file_existing {
         println!("File not found: {}", filename);
@@ -128,7 +128,10 @@ pub(crate) fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
     let processed = match std::fs::read_to_string(filename) {
         Ok(lua_src) => {
             let out = drive(&lua_src, linter);
-            exit_on_lint_errors(filename, linter);
+            let ok = print_lint_report(filename, linter);
+            if !ok && _exit_on_err {
+                std::process::exit(1);
+            }
             out
         }
         Err(e) => {
@@ -166,7 +169,7 @@ fn format_report(filename: &str, report: &LintReport) -> String {
         }
         s
     }
-    pub(crate) fn format_impl(
+    pub fn format_impl(
         filename: &str,
         report: &LintReport,
         line: (usize, &str),
@@ -271,7 +274,7 @@ fn format_report(filename: &str, report: &LintReport) -> String {
     format_impl(filename, report, line, continued_line)
 }
 
-fn exit_on_lint_errors(filename: &str, linter: &mut Linter) {
+fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
     let mut report_str = String::new();
     linter.rule_registry.rule_ctx.iter().for_each(|(name, rule)| {
         let mut rule_report_str = String::new();
@@ -287,9 +290,11 @@ fn exit_on_lint_errors(filename: &str, linter: &mut Linter) {
     if report_str.is_empty() {
         println!("== lint report");
         println!("ok");
+        true
     } else {
         eprintln!("== lint report");
         eprintln!("{}", report_str);
+        false
     }
 }
 
