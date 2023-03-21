@@ -191,6 +191,10 @@ impl Registry {
             None
         }
     }
+
+    pub fn get_all_ctx(&self) -> &HashMap<String, Box<dyn RuleContext>> {
+        &self.rule_ctx
+    }
     pub fn bind_ctx(&mut self, rule_name: &str, ctx: Box<dyn RuleContext>) {
         self.rule_ctx.insert(rule_name.to_string(), ctx);
     }
