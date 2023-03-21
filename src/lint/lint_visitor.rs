@@ -191,7 +191,7 @@ pub fn lint_func_call_block(ctx: &mut LualintContext, func_call: &FunctionCall) 
     let prefix = match func_call.prefix() {
         Prefix::Expression(expression) => Prefix::Expression(lint_expr_block(ctx, expression)),
         Prefix::Name(name) => Prefix::Name(name.to_owned()),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     };
 
     let suffixes = func_call
@@ -205,7 +205,7 @@ pub fn lint_func_call_block(ctx: &mut LualintContext, func_call: &FunctionCall) 
                     let args = lint_func_args_block(ctx, method_call.args());
                     Call::MethodCall(method_call.to_owned().with_args(args))
                 }
-                other => panic!("unknown node {:?}", other),
+                other => panic!("unknown node {other:?}"),
             }),
             Suffix::Index(index) => Suffix::Index(match index {
                 Index::Brackets { brackets, expression } => Index::Brackets {
@@ -214,7 +214,7 @@ pub fn lint_func_call_block(ctx: &mut LualintContext, func_call: &FunctionCall) 
                 },
                 _ => index.to_owned(),
             }),
-            other => panic!("unknown node {:?}", other),
+            other => panic!("unknown node {other:?}"),
         })
         .collect();
 
@@ -280,7 +280,7 @@ pub fn lint_field(ctx: &mut LualintContext, field: Field) -> Field {
             Field::NameKey { key, equal, value: lint_expr_block(ctx, &value) }
         }
         Field::NoKey(expression) => Field::NoKey(lint_expr_block(ctx, &expression)),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 }
 

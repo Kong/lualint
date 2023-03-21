@@ -144,13 +144,13 @@ pub fn print_rules() {
 pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
     let is_file_existing = std::path::Path::new(filename).exists();
     if !is_file_existing {
-        println!("File not found: {}", filename);
+        println!("File not found: {filename}");
         return;
     }
 
     let is_lua_file = filename.ends_with(".lua");
     if !is_lua_file {
-        println!("File is not a lua file: {}", filename);
+        println!("File is not a lua file: {filename}");
         return;
     }
     let _exit_on_err = true; // TODO: make this configurable
@@ -164,15 +164,15 @@ pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
             out
         }
         Err(e) => {
-            println!("Error reading file: {}", e);
+            println!("Error reading file: {e}");
             return;
         }
     };
 
     if write_back {
         match std::fs::write(filename, processed) {
-            Ok(_) => println!("File written back: {}", filename),
-            Err(e) => println!("Error writing file: {}", e),
+            Ok(_) => println!("File written back: {filename}"),
+            Err(e) => println!("Error writing file: {e}"),
         }
     } else {
         // info!("Linted: {}", processed);
@@ -313,7 +313,7 @@ fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
             rule_report_str.push_str(&format!("{}\n", format_report(filename, &report_tmp)));
         });
         if !rule_report_str.is_empty() {
-            report_str.push_str(&format!("[rule] {}:\n{}", name, rule_report_str));
+            report_str.push_str(&format!("[rule] {name}:\n{rule_report_str}"));
         }
     });
     if report_str.is_empty() {
@@ -322,7 +322,7 @@ fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
         true
     } else {
         eprintln!("== lint report");
-        eprintln!("{}", report_str);
+        eprintln!("{report_str}");
         false
     }
 }
@@ -375,9 +375,7 @@ pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> Stri
                 }
             // Check for block comment end
             } else if !is_in_string && last_char == Some('*') && cur_char == '/' {
-                if block_comment_depth > 0 {
-                    block_comment_depth -= 1;
-                }
+                block_comment_depth = block_comment_depth.saturating_sub(1);
                 last_char = None;
                 if preserve_locations {
                     json_output.push_str("  ");
@@ -388,10 +386,8 @@ pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> Stri
                     if let Some(last_char) = last_char {
                         json_output.push(last_char);
                     }
-                } else {
-                    if preserve_locations {
-                        json_output.push_str(" ");
-                    }
+                } else if preserve_locations {
+                    json_output.push(' ');
                 }
                 last_char = Some(cur_char);
             }

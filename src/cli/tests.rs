@@ -7,5 +7,5 @@ fn test_read_rules_from_file() {
     let out = build_config_linter(enabled_rules);
     assert!(out.is_some());
     let linter = out.unwrap();
-    assert!(linter.rule_registry.get_all_ctx().len() > 0);
+    assert!(!linter.rule_registry.get_all_ctx().is_empty());
 }

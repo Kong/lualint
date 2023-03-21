@@ -213,7 +213,7 @@ define_update_trivia!(Call, |this, leading, trailing| {
         Call::MethodCall(method_call) => {
             Call::MethodCall(method_call.update_trivia(leading, trailing))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -241,7 +241,7 @@ define_update_leading_trivia!(Expression, |this, leading| {
             #[cfg(feature = "luau")]
             type_assertion: type_assertion.to_owned(),
         },
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -284,7 +284,7 @@ define_update_trailing_trivia!(Expression, |this, trailing| {
             binop: binop.to_owned(),
             rhs: Box::new(rhs.update_trailing_trivia(trailing)),
         },
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -300,7 +300,7 @@ define_update_trivia!(FunctionArgs, |this, leading, trailing| {
         FunctionArgs::TableConstructor(table_constructor) => {
             FunctionArgs::TableConstructor(table_constructor.update_trivia(leading, trailing))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -350,7 +350,7 @@ define_update_trivia!(Index, |this, leading, trailing| {
             dot: dot.update_leading_trivia(leading),
             name: name.update_trailing_trivia(trailing),
         },
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -371,7 +371,7 @@ define_update_trivia!(LastStmt, |this, leading, trailing| {
         #[cfg(feature = "luau")]
         LastStmt::Continue(token) => LastStmt::Continue(token.update_trivia(leading, trailing)),
         LastStmt::Return(r#return) => LastStmt::Return(r#return.update_trivia(leading, trailing)),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -385,7 +385,7 @@ define_update_trivia!(Parameter, |this, leading, trailing| {
     match this {
         Parameter::Ellipse(token) => Parameter::Ellipse(token.update_trivia(leading, trailing)),
         Parameter::Name(token) => Parameter::Name(token.update_trivia(leading, trailing)),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -397,7 +397,7 @@ define_update_leading_trivia!(Prefix, |this, leading| {
         Prefix::Expression(expression) => {
             Prefix::Expression(expression.update_leading_trivia(leading))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -409,7 +409,7 @@ define_update_trailing_trivia!(Prefix, |this, trailing| {
         Prefix::Expression(expression) => {
             Prefix::Expression(expression.update_trailing_trivia(trailing))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -573,7 +573,7 @@ define_update_trivia!(Stmt, |this, leading, trailing| {
                 .with_left_colons(stmt.left_colons().update_leading_trivia(leading))
                 .with_right_colons(stmt.right_colons().update_trailing_trivia(trailing)),
         ),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -581,7 +581,7 @@ define_update_trivia!(Suffix, |this, leading, trailing| {
     match this {
         Suffix::Call(call) => Suffix::Call(call.update_trivia(leading, trailing)),
         Suffix::Index(index) => Suffix::Index(index.update_trivia(leading, trailing)),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -596,7 +596,7 @@ define_update_leading_trivia!(UnOp, |this, leading| {
         UnOp::Not(token_reference) => UnOp::Not(token_reference.update_leading_trivia(leading)),
         #[cfg(feature = "lua53")]
         UnOp::Tilde(token_reference) => UnOp::Tilde(token_reference.update_leading_trivia(leading)),
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -632,7 +632,7 @@ define_update_leading_trivia!(Value, |this, leading| {
         Value::InterpolatedString(interpolated_string) => {
             Value::InterpolatedString(interpolated_string.update_leading_trivia(leading))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -668,7 +668,7 @@ define_update_trailing_trivia!(Value, |this, trailing| {
         Value::InterpolatedString(interpolated_string) => {
             Value::InterpolatedString(interpolated_string.update_trailing_trivia(trailing))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -678,7 +678,7 @@ define_update_leading_trivia!(Var, |this, leading| {
         Var::Expression(var_expresion) => {
             Var::Expression(var_expresion.update_leading_trivia(leading))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
@@ -688,7 +688,7 @@ define_update_trailing_trivia!(Var, |this, trailing| {
         Var::Expression(var_expression) => {
             Var::Expression(var_expression.update_trailing_trivia(trailing))
         }
-        other => panic!("unknown node {:?}", other),
+        other => panic!("unknown node {other:?}"),
     }
 });
 
