@@ -23,7 +23,7 @@ fn main() {
     rules::init_all();
     if let Some(cmd) = &args.command {
         match cmd {
-            cli::Commands::Run { filename, rules } => cli::handle_run_command(filename, rules),
+            cli::Commands::Run { filename, rules, ignore } => cli::handle_run_command(filename, rules, ignore.to_owned()),
             cli::Commands::Rules {} => cli::print_rules(),
         }
     }
