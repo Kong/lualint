@@ -106,13 +106,16 @@ impl IgnoreRanges {
 type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
-pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore: Option<String>) {
+pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: Option<String>) {
     let mut linter = match build_config_linter(enabled_rules) {
         Some(value) => value,
         None => return,
     };
-    if let Some(ignore) = ignore {
-        let ignore = IgnoreRanges::from_csv(&ignore);
+    if let Some(ignore_file) = ignore_file_opt {
+        let mut ignore_file_content = String::new();
+        let mut ignore_file = std::fs::File::open(ignore_file).unwrap();
+        ignore_file.read_to_string(&mut ignore_file_content).unwrap();
+        let ignore = IgnoreRanges::from_csv(&ignore_file_content);
         lint_file(filename, &mut linter, true, Some(&ignore), &mut io::stdout());
     } else {
         lint_file(filename, &mut linter, true, None, &mut io::stdout());
