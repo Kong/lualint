@@ -1,9 +1,13 @@
+use std::io::Read;
+
 use clap::Subcommand;
 use log::{error, trace};
 use lualint::{
     lint::{self, Linter},
     rules::{self, LintReport},
 };
+
+mod tests;
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -27,15 +31,29 @@ type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
 pub fn handle_run_command(filename: &str, enabled_rules: &str) {
-    let enabled_rules_vec: Vec<(RuleName, RuleConfig)> = match parse_enabled_rules(enabled_rules) {
+    let mut linter = match build_config_linter(enabled_rules) {
+        Some(value) => value,
+        None => return,
+    };
+    lint_file(filename, &mut linter, false);
+}
+
+fn build_config_linter(enabled_rules: &str) -> Option<Linter> {
+    let mut enabled_rules_vec_result = parse_rule_json_file(enabled_rules);
+    if enabled_rules_vec_result.is_err() {
+        enabled_rules_vec_result = parse_rules_json(enabled_rules);
+    }
+
+    let enabled_rules_vec = match enabled_rules_vec_result {
         Ok(enabled_rules) => enabled_rules,
         Err(e) => {
             error!("Failed to parse enabled rules: {}. Value for param `--rules` msut be a valid json map. For example: {}", e, 
             r#"{ "rule_name1": {}, "rule_name2": { "key": "value" } }"#);
             trace!("given value: {}", enabled_rules);
-            return;
+            return None;
         }
     };
+    
     let mut linter_builder = lint::LinterBuilder::default();
     for (rule_name, rule_config) in enabled_rules_vec {
         match rule_name.as_str() {
@@ -68,17 +86,28 @@ pub fn handle_run_command(filename: &str, enabled_rules: &str) {
             }
             _ => {
                 error!("Unknown rule: {}", rule_name);
-                return;
+                return None;
             }
         }
     }
-    let mut linter = linter_builder.build();
-    lint_file(filename, &mut linter, false);
+    let linter = linter_builder.build();
+    Some(linter)
 }
 
-fn parse_enabled_rules(
+fn parse_rule_json_file(
+    filename: &str,
+) -> Result<Vec<(RuleName, RuleConfig)>, Box<dyn std::error::Error>> {
+    let mut file = std::fs::File::open(filename)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    parse_rules_json(&contents)
+}
+
+fn parse_rules_json(
     enabled_rules: &str,
 ) -> Result<Vec<(RuleName, RuleConfig)>, Box<dyn std::error::Error>> {
+
+    let enabled_rules = &strip_jsonc_comments(enabled_rules, true);
     // parse as json
 
     let v = serde_json::from_str::<serde_json::Value>(enabled_rules)?;
@@ -115,13 +144,13 @@ pub fn print_rules() {
 pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
     let is_file_existing = std::path::Path::new(filename).exists();
     if !is_file_existing {
-        println!("File not found: {}", filename);
+        println!("File not found: {filename}");
         return;
     }
 
     let is_lua_file = filename.ends_with(".lua");
     if !is_lua_file {
-        println!("File is not a lua file: {}", filename);
+        println!("File is not a lua file: {filename}");
         return;
     }
     let _exit_on_err = true; // TODO: make this configurable
@@ -135,15 +164,15 @@ pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
             out
         }
         Err(e) => {
-            println!("Error reading file: {}", e);
+            println!("Error reading file: {e}");
             return;
         }
     };
 
     if write_back {
         match std::fs::write(filename, processed) {
-            Ok(_) => println!("File written back: {}", filename),
-            Err(e) => println!("Error writing file: {}", e),
+            Ok(_) => println!("File written back: {filename}"),
+            Err(e) => println!("Error writing file: {e}"),
         }
     } else {
         // info!("Linted: {}", processed);
@@ -284,7 +313,7 @@ fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
             rule_report_str.push_str(&format!("{}\n", format_report(filename, &report_tmp)));
         });
         if !rule_report_str.is_empty() {
-            report_str.push_str(&format!("[rule] {}:\n{}", name, rule_report_str));
+            report_str.push_str(&format!("[rule] {name}:\n{rule_report_str}"));
         }
     });
     if report_str.is_empty() {
@@ -293,7 +322,7 @@ fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
         true
     } else {
         eprintln!("== lint report");
-        eprintln!("{}", report_str);
+        eprintln!("{report_str}");
         false
     }
 }
@@ -308,4 +337,77 @@ pub fn drive(lua_src: &str, linter: &mut Linter) -> String {
     // should return stringified _formatted_ast
     //   but currently we don't provide a way to do that
     lua_src
+}
+
+/// Takes a string of jsonc content and returns a comment free version
+/// which should parse fine as regular json.
+/// Nested block comments are supported.
+/// preserve_locations will replace most comments with spaces, so that JSON parsing
+/// errors should point to the right location.
+pub fn strip_jsonc_comments(jsonc_input: &str, preserve_locations: bool) -> String {
+    let mut json_output = String::new();
+
+    let mut block_comment_depth: u8 = 0;
+    let mut is_in_string: bool = false; // Comments cannot be in strings
+
+    for line in jsonc_input.split('\n') {
+        let mut last_char: Option<char> = None;
+        for cur_char in line.chars() {
+            // Check whether we're in a string
+            if block_comment_depth == 0 && last_char != Some('\\') && cur_char == '"' {
+                is_in_string = !is_in_string;
+            }
+
+            // Check for line comment start
+            if !is_in_string && last_char == Some('/') && cur_char == '/' {
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+                break; // Stop outputting or parsing this line
+            }
+            // Check for block comment start
+            if !is_in_string && last_char == Some('/') && cur_char == '*' {
+                block_comment_depth += 1;
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+            // Check for block comment end
+            } else if !is_in_string && last_char == Some('*') && cur_char == '/' {
+                block_comment_depth = block_comment_depth.saturating_sub(1);
+                last_char = None;
+                if preserve_locations {
+                    json_output.push_str("  ");
+                }
+            // Output last char if not in any block comment
+            } else {
+                if block_comment_depth == 0 {
+                    if let Some(last_char) = last_char {
+                        json_output.push(last_char);
+                    }
+                } else if preserve_locations {
+                    json_output.push(' ');
+                }
+                last_char = Some(cur_char);
+            }
+        }
+
+        // Add last char and newline if not in any block comment
+        if let Some(last_char) = last_char {
+            if block_comment_depth == 0 {
+                json_output.push(last_char);
+            } else if preserve_locations {
+                json_output.push(' ');
+            }
+        }
+
+        // Remove trailing whitespace from line
+        while json_output.ends_with(' ') {
+            json_output.pop();
+        }
+        json_output.push('\n');
+    }
+
+    json_output
 }

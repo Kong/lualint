@@ -45,6 +45,24 @@ Set the `LUALINT_LOG` environment variable to one of the following values to con
 - `debug`
 - `trace`
 
+## Usage
+
+To view command line options, run:
+
+```bash
+lualint --help
+```
+
+### Check a file
+
+```bash
+lualint run --rules <RULES> <FILENAME>
+```
+
+where `<RULES>` is a json string or a file path. See [rscripts/all_rules.jsonc](scripts/all_rules.jsonc) for an example.
+
+and `<FILENAME>` is the path to the file to be checked.
+
 ## Todo
 
 - [x] Show filename
