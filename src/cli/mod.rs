@@ -26,30 +26,33 @@ pub enum Commands {
         filename: String,
         #[clap(long)]
         rules: String,
-        /// Ignore ranges in the file, optional
+        // if ignore file is given, errors in these ranges will be ignored
         #[clap(long)]
         ignore: Option<String>,
+        // if focus file is given, only errors in these ranges will be reported
+        #[clap(long)]
+        focus: Option<String>,
     },
     Rules,
 }
 
-pub struct IgnoreFileRanges {
+pub struct SpecificFileRanges {
     pub file: String,
     pub ranges: Vec<(usize, usize)>,
 }
 
-pub struct IgnoreRanges {
-    pub file_ranges: Vec<IgnoreFileRanges>,
+pub struct SpecificRanges {
+    pub file_ranges: Vec<SpecificFileRanges>,
     _cache: HashMap<String, Vec<(usize, usize)>>,
 }
 
-impl IgnoreRanges {
+impl SpecificRanges {
     pub fn new() -> Self {
         Self { file_ranges: Vec::new(), _cache: HashMap::new() }
     }
 
     pub fn from_csv(csv: &str) -> Self {
-        let mut ign_ranges = Self::new();
+        let mut spec_ranges = Self::new();
         for line in csv.lines() {
             // skip empty lines
             if line.is_empty() {
@@ -58,16 +61,16 @@ impl IgnoreRanges {
             let mut parts = line.split(',');
             // warn on invalid lines
             if parts.clone().count() != 3 {
-                error!("Invalid ignore line: {}", line);
+                error!("Invalid specific line: {}", line);
                 continue;
             }
             let file = parts.next().unwrap();
             let start = parts.next().unwrap().parse::<usize>().unwrap();
             let end = parts.next().unwrap().parse::<usize>().unwrap();
-            ign_ranges.add(file, start, end);
+            spec_ranges.add(file, start, end);
         }
-        ign_ranges.cache();
-        ign_ranges
+        spec_ranges.cache();
+        spec_ranges
     }
 
     pub fn add(&mut self, file: &str, start: usize, end: usize) {
@@ -81,7 +84,7 @@ impl IgnoreRanges {
         }
         if !found_file {
             self.file_ranges
-                .push(IgnoreFileRanges { file: file.to_string(), ranges: vec![(start, end)] });
+                .push(SpecificFileRanges { file: file.to_string(), ranges: vec![(start, end)] });
         }
     }
 
@@ -91,7 +94,7 @@ impl IgnoreRanges {
         }
     }
 
-    pub fn is_ignored(&self, filename: &str, line: usize) -> bool {
+    pub fn hit(&self, filename: &str, line: usize) -> bool {
         if let Some(ranges) = self._cache.get(filename) {
             for (start, end) in ranges {
                 if line >= *start && line <= *end {
@@ -106,7 +109,11 @@ impl IgnoreRanges {
 type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
-pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: Option<String>) {
+pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: Option<String>, focus_file_opt: Option<String>) {
+    if ignore_file_opt.is_some() && focus_file_opt.is_some() {
+        error!("Cannot use both `--ignore` and `--focus`");
+        return;
+    }
     let mut linter = match build_config_linter(enabled_rules) {
         Some(value) => value,
         None => return,
@@ -115,10 +122,19 @@ pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: 
         let mut ignore_file_content = String::new();
         let mut ignore_file = std::fs::File::open(ignore_file).unwrap();
         ignore_file.read_to_string(&mut ignore_file_content).unwrap();
-        let ignore = IgnoreRanges::from_csv(&ignore_file_content);
-        lint_file(filename, &mut linter, true, Some(&ignore), &mut io::stdout());
-    } else {
-        lint_file(filename, &mut linter, true, None, &mut io::stdout());
+        let ignore = SpecificRanges::from_csv(&ignore_file_content);
+        lint_file(filename, &mut linter, true, Some(&ignore), None, &mut io::stdout());
+    }  
+    else if let Some(focus_file) = focus_file_opt {
+        let mut focus_file_content = String::new();
+        let mut focus_file = std::fs::File::open(focus_file).unwrap();
+        focus_file.read_to_string(&mut focus_file_content).unwrap();
+        let focus = SpecificRanges::from_csv(&focus_file_content);
+        lint_file(filename, &mut linter, false, None, Some(&focus), &mut io::stdout());
+    }
+    
+    else {
+        lint_file(filename, &mut linter, true, None,None, &mut io::stdout());
     }
 }
 
@@ -228,7 +244,8 @@ pub fn lint_file(
     filename: &str,
     linter: &mut Linter,
     write_back: bool,
-    ignore: Option<&IgnoreRanges>,
+    ignore: Option<&SpecificRanges>,
+    focus: Option<&SpecificRanges>,
     writer: &mut dyn io::Write,
 ) {
     let is_file_existing = std::path::Path::new(filename).exists();
@@ -248,7 +265,7 @@ pub fn lint_file(
     let processed = match std::fs::read_to_string(filename) {
         Ok(lua_src) => {
             let out = drive(&lua_src, linter);
-            let ok = print_lint_report(filename, Some(&lua_src), linter, ignore, writer);
+            let ok = print_lint_report(filename, Some(&lua_src), linter, ignore, focus, writer);
             if !ok && _exit_on_err {
                 std::process::exit(1);
             }
@@ -404,7 +421,8 @@ fn print_lint_report(
     filename: &str,
     file_content: Option<&str>,
     linter: &mut Linter,
-    ignore: Option<&IgnoreRanges>,
+    ignore: Option<&SpecificRanges>,
+    focus: Option<&SpecificRanges>,
     writer: &mut dyn io::Write,
 ) -> bool {
     let mut report_str = String::new();
@@ -414,7 +432,12 @@ fn print_lint_report(
             let mut report_tmp: LintReport = report.clone();
             report_tmp.pos.file = filename.to_string();
             if let Some(ignore) = ignore {
-                if ignore.is_ignored(filename, report.pos.line) {
+                if ignore.hit(filename, report.pos.line) {
+                    return ();
+                }
+            }
+            if let Some(focus) = focus {
+                if !focus.hit(filename, report.pos.line) {
                     return ();
                 }
             }
