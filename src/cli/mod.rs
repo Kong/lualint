@@ -51,7 +51,16 @@ impl IgnoreRanges {
     pub fn from_csv(csv: &str) -> Self {
         let mut ign_ranges = Self::new();
         for line in csv.lines() {
+            // skip empty lines
+            if line.is_empty() {
+                continue;
+            }
             let mut parts = line.split(',');
+            // warn on invalid lines
+            if parts.clone().count() != 3 {
+                error!("Invalid ignore line: {}", line);
+                continue;
+            }
             let file = parts.next().unwrap();
             let start = parts.next().unwrap().parse::<usize>().unwrap();
             let end = parts.next().unwrap().parse::<usize>().unwrap();
