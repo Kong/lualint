@@ -15,7 +15,7 @@ fn test_read_rules_from_file() {
 #[test]
 fn test_ignore_lines() {
     use super::{build_config_linter};
-    use crate::cli::{IgnoreRanges, drive, print_lint_report};
+    use crate::cli::{SpecificRanges, drive, print_lint_report};
 
     let ignore_range = r"test_ignore_lines.txt,1,2
 test_ignore_lines.txt,4,4";
@@ -27,14 +27,14 @@ line3 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 line4 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 line5 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 "#;
-    let ignore = IgnoreRanges::from_csv(ignore_range);
+    let ignore = SpecificRanges::from_csv(ignore_range);
     let mut linter = match build_config_linter(enabled_rules) {
         Some(value) => value,
         None => return,
     };
     let mut stdout = Vec::new();
     let _ = drive(&lua_src, &mut linter);
-    let _ = print_lint_report(filename,Some(&lua_src), &mut linter, Some(&ignore),  &mut stdout);
+    let _ = print_lint_report(filename,Some(&lua_src), &mut linter, Some(&ignore), None, &mut stdout);
     assert_eq!(String::from_utf8(stdout).unwrap(), r#"== lint report
 [rule] max_column_width:
  --> test_ignore_lines.txt:3:86
