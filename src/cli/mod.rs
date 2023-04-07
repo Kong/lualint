@@ -1,4 +1,7 @@
-use std::io::Read;
+use std::{
+    collections::HashMap,
+    io::{self, Read},
+};
 
 use clap::Subcommand;
 use log::{error, trace};
@@ -23,19 +26,88 @@ pub enum Commands {
         filename: String,
         #[clap(long)]
         rules: String,
+        /// Ignore ranges in the file, optional
+        #[clap(long)]
+        ignore: Option<String>,
     },
     Rules,
+}
+
+pub struct IgnoreFileRanges {
+    pub file: String,
+    pub ranges: Vec<(usize, usize)>,
+}
+
+pub struct IgnoreRanges {
+    pub file_ranges: Vec<IgnoreFileRanges>,
+    _cache: HashMap<String, Vec<(usize, usize)>>,
+}
+
+impl IgnoreRanges {
+    pub fn new() -> Self {
+        Self { file_ranges: Vec::new(), _cache: HashMap::new() }
+    }
+
+    pub fn from_csv(csv: &str) -> Self {
+        let mut ign_ranges = Self::new();
+        for line in csv.lines() {
+            let mut parts = line.split(',');
+            let file = parts.next().unwrap();
+            let start = parts.next().unwrap().parse::<usize>().unwrap();
+            let end = parts.next().unwrap().parse::<usize>().unwrap();
+            ign_ranges.add(file, start, end);
+        }
+        ign_ranges.cache();
+        ign_ranges
+    }
+
+    pub fn add(&mut self, file: &str, start: usize, end: usize) {
+        let mut found_file = false;
+        for file_range in &mut self.file_ranges {
+            if file_range.file == file {
+                file_range.ranges.push((start, end));
+                found_file = true;
+                break;
+            }
+        }
+        if !found_file {
+            self.file_ranges
+                .push(IgnoreFileRanges { file: file.to_string(), ranges: vec![(start, end)] });
+        }
+    }
+
+    fn cache(&mut self) {
+        for file_range in &self.file_ranges {
+            self._cache.insert(file_range.file.clone(), file_range.ranges.clone());
+        }
+    }
+
+    pub fn is_ignored(&self, filename: &str, line: usize) -> bool {
+        if let Some(ranges) = self._cache.get(filename) {
+            for (start, end) in ranges {
+                if line >= *start && line <= *end {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 
 type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
-pub fn handle_run_command(filename: &str, enabled_rules: &str) {
+pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore: Option<String>) {
     let mut linter = match build_config_linter(enabled_rules) {
         Some(value) => value,
         None => return,
     };
-    lint_file(filename, &mut linter, false);
+    if let Some(ignore) = ignore {
+        let ignore = IgnoreRanges::from_csv(&ignore);
+        lint_file(filename, &mut linter, true, Some(&ignore), &mut io::stdout());
+    } else {
+        lint_file(filename, &mut linter, true, None, &mut io::stdout());
+    }
 }
 
 fn build_config_linter(enabled_rules: &str) -> Option<Linter> {
@@ -53,7 +125,7 @@ fn build_config_linter(enabled_rules: &str) -> Option<Linter> {
             return None;
         }
     };
-    
+
     let mut linter_builder = lint::LinterBuilder::default();
     for (rule_name, rule_config) in enabled_rules_vec {
         match rule_name.as_str() {
@@ -106,7 +178,6 @@ fn parse_rule_json_file(
 fn parse_rules_json(
     enabled_rules: &str,
 ) -> Result<Vec<(RuleName, RuleConfig)>, Box<dyn std::error::Error>> {
-
     let enabled_rules = &strip_jsonc_comments(enabled_rules, true);
     // parse as json
 
@@ -141,46 +212,60 @@ pub fn print_rules() {
     });
 }
 
-pub fn lint_file(filename: &str, linter: &mut Linter, write_back: bool) {
+pub fn lint_file(
+    filename: &str,
+    linter: &mut Linter,
+    write_back: bool,
+    ignore: Option<&IgnoreRanges>,
+    writer: &mut dyn io::Write,
+) {
     let is_file_existing = std::path::Path::new(filename).exists();
     if !is_file_existing {
-        println!("File not found: {filename}");
+        // println!("File not found: {filename}");
+        writeln!(writer, "File not found: {}", filename).unwrap();
         return;
     }
 
     let is_lua_file = filename.ends_with(".lua");
     if !is_lua_file {
-        println!("File is not a lua file: {filename}");
+        // println!("File is not a lua file: {filename}");
+        writeln!(writer, "File is not a lua file: {}", filename).unwrap();
         return;
     }
     let _exit_on_err = true; // TODO: make this configurable
     let processed = match std::fs::read_to_string(filename) {
         Ok(lua_src) => {
             let out = drive(&lua_src, linter);
-            let ok = print_lint_report(filename, linter);
+            let ok = print_lint_report(filename, Some(&lua_src), linter, ignore, writer);
             if !ok && _exit_on_err {
                 std::process::exit(1);
             }
             out
         }
         Err(e) => {
-            println!("Error reading file: {e}");
+            // println!("Error reading file: {e}");
+            writeln!(writer, "Error reading file: {}", e).unwrap();
             return;
         }
     };
 
     if write_back {
         match std::fs::write(filename, processed) {
-            Ok(_) => println!("File written back: {filename}"),
-            Err(e) => println!("Error writing file: {e}"),
+            Ok(_) => writeln!(writer, "Wrote file: {}", filename).unwrap(),
+            Err(e) => writeln!(writer, "Error writing file: {}", e).unwrap(),
         }
     } else {
         // info!("Linted: {}", processed);
     }
 }
 
-fn format_report(filename: &str, report: &LintReport) -> String {
-    let file_contents = std::fs::read_to_string(filename).unwrap();
+fn format_report(filename: &str, file_content_opt: Option<&str>, report: &LintReport) -> String {
+    let file_contents;
+    if file_content_opt.is_none() {
+        file_contents = std::fs::read_to_string(filename).unwrap();
+    } else {
+        file_contents = file_content_opt.unwrap().to_string();
+    }
     let lines: Vec<&str> = file_contents.lines().collect();
     if report.pos.line == 0 {
         return format!("{}: {}", filename, report.msg);
@@ -303,26 +388,37 @@ fn format_report(filename: &str, report: &LintReport) -> String {
     format_impl(filename, report, line, continued_line)
 }
 
-fn print_lint_report(filename: &str, linter: &mut Linter) -> bool {
+fn print_lint_report(
+    filename: &str,
+    file_content: Option<&str>,
+    linter: &mut Linter,
+    ignore: Option<&IgnoreRanges>,
+    writer: &mut dyn io::Write,
+) -> bool {
     let mut report_str = String::new();
     linter.rule_registry.rule_ctx.iter().for_each(|(name, rule)| {
         let mut rule_report_str = String::new();
         rule.get_reports().iter().for_each(|report: &LintReport| {
             let mut report_tmp: LintReport = report.clone();
             report_tmp.pos.file = filename.to_string();
-            rule_report_str.push_str(&format!("{}\n", format_report(filename, &report_tmp)));
+            if let Some(ignore) = ignore {
+                if ignore.is_ignored(filename, report.pos.line) {
+                    return ();
+                }
+            }
+            rule_report_str.push_str(&format!("{}\n", format_report(filename, file_content, &report_tmp)));
         });
         if !rule_report_str.is_empty() {
             report_str.push_str(&format!("[rule] {name}:\n{rule_report_str}"));
         }
     });
     if report_str.is_empty() {
-        println!("== lint report");
-        println!("ok");
+        writeln!(writer, "== lint report").unwrap();
+        writeln!(writer, "ok").unwrap();
         true
     } else {
-        eprintln!("== lint report");
-        eprintln!("{report_str}");
+        writeln!(writer, "== lint report").unwrap();
+        writeln!(writer, "{report_str}", report_str = report_str).unwrap();
         false
     }
 }
