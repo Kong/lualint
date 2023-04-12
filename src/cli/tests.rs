@@ -11,6 +11,38 @@ fn test_read_rules_from_file() {
     assert!(!linter.rule_registry.get_all_ctx().is_empty());
 }
 
+#[test]
+fn test_basic_line() {
+    use super::{build_config_linter};
+    use crate::cli::{drive, print_lint_report};
+
+    let source_file = "tests/comp/longline.lua";
+    let enabled_rules = "scripts/all_rules.jsonc";
+    let mut linter = match build_config_linter(enabled_rules) {
+        Some(value) => value,
+        None => return,
+    };
+    let mut stdout = Vec::new();
+    let source = match std::fs::read_to_string(source_file) {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+    let _ = drive(&source, &mut linter);
+    let _ = print_lint_report(&source_file, None, &mut linter, None, &mut stdout);
+    assert_eq!(String::from_utf8(stdout).unwrap(), r#"== lint report
+[rule] eof_blank_line:
+tests/comp/longline.lua: File is expected to end with a blank line, but does not
+[rule] max_column_width:
+  --> tests/comp/longline.lua:20:87
+   |
+20 | b = {                                                                                  }
+   |                                                                                       ^
+   |
+   = Line is expected to be at most 80 characters, but is more than 88 characters
+
+"#);
+  }
+
 // test ignore lines
 #[test]
 fn test_ignore_lines() {
