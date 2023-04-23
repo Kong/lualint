@@ -1,8 +1,10 @@
-use std::{collections::HashMap, sync::Mutex};
+use linked_hash_map::LinkedHashMap;
+
+use std::sync::Mutex;
 
 use downcast_rs::{impl_downcast, Downcast};
 use full_moon::{
-    ast::{*, lua52::Goto},
+    ast::{lua52::Goto, *},
     tokenizer::{Position, Token, TokenReference},
 };
 
@@ -57,8 +59,8 @@ pub struct RuleInfo {
 }
 
 lazy_static::lazy_static! {
-    pub static  ref ALL_RULES: std::sync::Mutex<HashMap<&'static str, RuleInfo>> = {
-        let map = HashMap::new();
+    pub static  ref ALL_RULES: std::sync::Mutex<LinkedHashMap<&'static str, RuleInfo>> = {
+        let map = LinkedHashMap::new();
         Mutex::new(map)
     };
 }
@@ -151,12 +153,12 @@ type CallbackIndex = usize;
 #[derive(Default)]
 pub struct Registry {
     callbacks: Vec<RuleCallback>,
-    enter_walker_map: HashMap<NodeKey, Vec<CallbackIndex>>,
-    leave_walker_map: HashMap<NodeKey, Vec<CallbackIndex>>,
+    enter_walker_map: LinkedHashMap<NodeKey, Vec<CallbackIndex>>,
+    leave_walker_map: LinkedHashMap<NodeKey, Vec<CallbackIndex>>,
     token_listeners: Vec<CallbackIndex>,
     preprocessors: Vec<CallbackIndex>,
-    pub rule_ctx: HashMap<String, Box<dyn RuleContext>>,
-    callback_id_to_name: HashMap<CallbackIndex, String>,
+    pub rule_ctx: LinkedHashMap<String, Box<dyn RuleContext>>,
+    callback_id_to_name: LinkedHashMap<CallbackIndex, String>,
 }
 pub trait RuleContext: Downcast {
     fn get_reports(&self) -> &Vec<LintReport>;
@@ -192,7 +194,7 @@ impl Registry {
         }
     }
 
-    pub fn get_all_ctx(&self) -> &HashMap<String, Box<dyn RuleContext>> {
+    pub fn get_all_ctx(&self) -> &LinkedHashMap<String, Box<dyn RuleContext>> {
         &self.rule_ctx
     }
     pub fn bind_ctx(&mut self, rule_name: &str, ctx: Box<dyn RuleContext>) {
@@ -258,37 +260,13 @@ impl Registry {
         self.callback_id_to_name.insert(callback_index, rule_name.to_string());
     }
 
-    pub fn listen_enter(
-        &mut self,
-        rule_name: &str,
-        node_type: NodeKey,
-        callback: RuleCallback,
-    ) {
+    pub fn listen_enter(&mut self, rule_name: &str, node_type: NodeKey, callback: RuleCallback) {
         self.register_walker(rule_name, node_type, WalkTy::Enter, callback);
     }
 
-    pub fn listen_leave(
-        &mut self,
-        rule_name: &str,
-        node_type: NodeKey,
-        callback: RuleCallback,
-    ) {
+    pub fn listen_leave(&mut self, rule_name: &str, node_type: NodeKey, callback: RuleCallback) {
         self.register_walker(rule_name, node_type, WalkTy::Leave, callback);
     }
-
-    // pub fn trigger(&mut self, node_key: NodeKey, rule: NodeWrapper) -> (NodeWrapper, bool) {
-    //     let mut rule = rule;
-    //     let mut hit = false;
-    //     if let Some(callbacks) = self.node_visitor_map.get(&node_key) {
-    //         for callback in callbacks {
-    //             let rule_name = self.callback_id_to_name.get(callback).unwrap();
-    //             let ctx: &mut dyn RuleContext = self.rule_ctx.get_mut(rule_name).unwrap().as_mut();
-    //             rule = (self.callbacks[*callback])(ctx, rule);
-    //             hit = true;
-    //         }
-    //     }
-    //     (rule, hit)
-    // }
 
     pub fn trigger_walker(
         &mut self,
