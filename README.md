@@ -77,6 +77,7 @@ and `<FILENAME>` is the path to the file to be checked.
 
 ## License
 
-[Mozilla Public License Version 2.0](LICENSE)
+Copyright (c) 2023 Kong, Inc.
 
-Translated with www.DeepL.com/Translator (free version)
+Licensed under the Apache License, Version 2.0 <LICENSE or https://www.apache.org/licenses/LICENSE-2.0>.
+Files in the project may not be copied, modified, or distributed except according to those terms.

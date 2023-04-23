@@ -41,9 +41,9 @@ jobs:
       - name: Rename artifacts and compress
         run: |
           cd target/${{ matrix.target }}/release
-          zip lualint_${{ matrix.target }}.zip lualint
+          mv lualint lualint_${{ matrix.target }}
       - name: Upload Github Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: target/${{ matrix.target }}/release/*.zip
+          files: target/${{ matrix.target }}/release/lualint_*
           prerelease: ${{ contains(github.ref, '-') }}
