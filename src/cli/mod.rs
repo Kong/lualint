@@ -1,7 +1,6 @@
-use std::{
-    collections::HashMap,
-    io::{self, Read},
-};
+use linked_hash_map::LinkedHashMap;
+
+use std::io::{self, Read};
 
 use clap::Subcommand;
 use log::{error, trace};
@@ -43,12 +42,12 @@ pub struct SpecificFileRanges {
 
 pub struct SpecificRanges {
     pub file_ranges: Vec<SpecificFileRanges>,
-    _cache: HashMap<String, Vec<(usize, usize)>>,
+    _cache: LinkedHashMap<String, Vec<(usize, usize)>>,
 }
 
 impl SpecificRanges {
     pub fn new() -> Self {
-        Self { file_ranges: Vec::new(), _cache: HashMap::new() }
+        Self { file_ranges: Vec::new(), _cache: LinkedHashMap::new() }
     }
 
     pub fn from_csv(csv: &str) -> Self {
@@ -109,7 +108,12 @@ impl SpecificRanges {
 type RuleName = String;
 type RuleConfig = serde_json::Value;
 // enabled_rules = "[rule_name1:{},rule_name2:{key: value, key: value}]"
-pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: Option<String>, focus_file_opt: Option<String>) {
+pub fn handle_run_command(
+    filename: &str,
+    enabled_rules: &str,
+    ignore_file_opt: Option<String>,
+    focus_file_opt: Option<String>,
+) {
     if ignore_file_opt.is_some() && focus_file_opt.is_some() {
         error!("Cannot use both `--ignore` and `--focus`");
         return;
@@ -124,17 +128,14 @@ pub fn handle_run_command(filename: &str, enabled_rules: &str, ignore_file_opt: 
         ignore_file.read_to_string(&mut ignore_file_content).unwrap();
         let ignore = SpecificRanges::from_csv(&ignore_file_content);
         lint_file(filename, &mut linter, true, Some(&ignore), None, &mut io::stdout());
-    }  
-    else if let Some(focus_file) = focus_file_opt {
+    } else if let Some(focus_file) = focus_file_opt {
         let mut focus_file_content = String::new();
         let mut focus_file = std::fs::File::open(focus_file).unwrap();
         focus_file.read_to_string(&mut focus_file_content).unwrap();
         let focus = SpecificRanges::from_csv(&focus_file_content);
         lint_file(filename, &mut linter, false, None, Some(&focus), &mut io::stdout());
-    }
-    
-    else {
-        lint_file(filename, &mut linter, true, None,None, &mut io::stdout());
+    } else {
+        lint_file(filename, &mut linter, true, None, None, &mut io::stdout());
     }
 }
 
@@ -441,7 +442,8 @@ fn print_lint_report(
                     return ();
                 }
             }
-            rule_report_str.push_str(&format!("{}\n", format_report(filename, file_content, &report_tmp)));
+            rule_report_str
+                .push_str(&format!("{}\n", format_report(filename, file_content, &report_tmp)));
         });
         if !rule_report_str.is_empty() {
             report_str.push_str(&format!("[rule] {name}:\n{rule_report_str}"));

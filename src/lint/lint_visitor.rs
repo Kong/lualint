@@ -422,10 +422,6 @@ pub fn lint_local_assign(ctx: &mut LualintContext, las: &LocalAssignment) -> Stm
     )
 }
 
-fn print_token_ref(token_ref: &TokenReference) -> String {
-    format!("{}:{}", token_ref.start_position().line(), token_ref.start_position().character())
-}
-
 pub fn lint_punctuated<T, F>(
     ctx: &mut LualintContext,
     old: &Punctuated<T>,

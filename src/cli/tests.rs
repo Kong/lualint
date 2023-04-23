@@ -17,7 +17,10 @@ fn test_basic_line() {
     use crate::cli::{drive, print_lint_report};
 
     let source_file_name = "tests/comp/longline.lua";
-    let enabled_rules = "scripts/all_rules.jsonc";
+    let enabled_rules = r#"{
+      "max_column_width": {},
+      "eof_blank_line": {},
+    }"#;
     let mut linter = match build_config_linter(enabled_rules) {
         Some(value) => value,
         None => return,
